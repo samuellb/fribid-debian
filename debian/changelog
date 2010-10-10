@@ -1,0 +1,8 @@
+fribid (0.2.1a-1) unstable; urgency=low
+
+  * Initial release for Debian (Closes: #578563)
+  * My first package.
+  * This Debian package is based on the packaging that was included
+    in the FriBID sources up to version 0.2.0.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 10 Oct 2010 23:59:45 +0200

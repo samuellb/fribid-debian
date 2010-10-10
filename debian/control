@@ -1,0 +1,32 @@
+Source: fribid
+Section: web
+Priority: optional
+Maintainer: Samuel Lidén Borell <samuel@slbdata.se>
+Build-Depends: debhelper (>= 7.0.50~), pkg-config, gettext, libgtk2.0-dev (>= 2.18), libglib2.0-dev (>= 2.8), libssl-dev (>= 0.9.8), libp11-dev (>= 0.2.3)
+Standards-Version: 3.9.1
+Homepage: http://www.fribid.se/
+Vcs-Git: git://github.com/samuellb/fribid-debian.git
+Vcs-Browser: http://github.com/samuellb/fribid-debian
+
+Package: fribid
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: iceweasel (>= 3) | firefox (>= 3) | midori (>= 0.2) | epiphany-browser (>= 2.22) | iceape-browser (>= 2) | chromium-browser
+Suggests: libopensc2, pcscd, opensc
+Description: web browser plugin for BankID
+ FriBID is a web browser plugin for BankID, a kind of electronic ID
+ (e-legitimation) that's used in Sweden. It supports file-based
+ electronic IDs (e-legitimation på fil) and card-based IDs (e-legitimation
+ på kort), with some limitations:
+ .
+  * The new file formats (NGE/NGP) from the official client of version
+    4.15.0.14 aren't supported.
+  * It's not possible to fetch new file-based IDs.
+  * To change your password/PIN you need to use other programs.
+  * To be able to use card-based IDs you need to do some configuration,
+    see http://wiki.fribid.se/sidor/SmartCards (in Swedish).
+ .
+ FriBID is only compatible with the second version of BankID, and not
+ the older system that uses Java applets.
+
+

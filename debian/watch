@@ -1,0 +1,4 @@
+version=3
+
+http://fribid.se/releases/source/fribid-(.*)\.tar\.bz2
+
