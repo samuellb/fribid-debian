@@ -1,0 +1,91 @@
+0.2.1a - 2010-10-11
+  * Fixed a problem with one of the Makefiles.
+
+
+0.2.1 - 2010-10-10
+  * Added a manual page.
+  * Corrected the version number of GTK in the INSTALL document.
+  * Moved the source files for building Debian packages to a separate
+    repostitory at http://github.com/samuellb/fribid-debian
+
+
+0.2.0 - 2010-09-17
+  * Support for card readers. See http://wiki.fribid.se/sidor/SmartCards
+    Thanks to Marcus Carlson and Henrik Nordström.
+  * Updated the version string to the latest one of the official Linux
+    client (4.15.0.14).
+  * Replaced the dependency on the NSS crypto library with OpenSSL.
+  * Added a simple web page for testing certificate requesting.
+  * The Debian package no longer suggests that Java should be installed,
+    Java hasn't been used by BankID sites for a long time now.
+  * Add Chromium to the list of recommended browsers in the Debian package.
+  * Code cleanup.
+
+
+0.1.4 - 2010-05-16
+  * Fixed a problem that occurred on Försäkringskassan's web site. Thanks
+    to mannuz who discovered this problem.
+
+
+0.1.3 - 2010-04-16
+  * Fixed a crash that occurred with certain certificate/identity files.
+    Thanks to Marcus Carlson who tracked down this bug.
+  * Made FriBID look for certificates/identity files in ~/.cbt as well
+    as ~/cbt. Thanks to Marcus Carlson for this patch.
+  * Made it possible to specify a path for the library files. Normally
+    these are stored in /usr/lib/, but some distributions store them
+    in /usr/lib64/ on 64-bit platforms (for example Slackware).
+  * Added an ASN1 dumping tool, which can be used to analyze certificate/
+    identity files.
+  * Small improvements in performance and documentation fixes.
+
+
+0.1.2 - 2010-03-24
+  * Fixed a bug with optimized builds that caused passwords to not be
+    cleared from RAM when they where no longer needed.
+  * Fixed a compatibility problem with sites that request signing
+    without specifying a subject (personal number).
+  * Implemented "non-visible data", which is used in signatures at some
+    sites, such as Skatteverket.
+  * A better random source is now used for the encryption keys for the
+    temporary NSS database.
+
+
+0.1.1 - 2010-02-20
+  * Fixed a bug that sometimes caused PIDs of exited child processes
+    ("zombies") to be left around.
+  * Added a "fuzzer" script that can be used to check for bugs.
+  * Compatibility with Google Chrome / Chromium.
+  * Prevent the password from getting swapped out. Thanks to Linus Walleij
+    for this patch!
+  * Fixed some build problems completely on FreeBSD, and partially on
+    OpenBSD. Thanks to Markus Bergkvist!
+  * Fixed a browser crash on some 64-bit platforms. Thanks to Håkan Kvist
+    for this patch!
+    
+
+0.1.0 - 2010-02-03
+  * All occurrences of the password in RAM are now cleared when they are
+    no longer needed.
+  * Fixed an error that occurred on sites that were sending null bytes in
+    the challenge parameter.
+  * Better error handling.
+  * Renamed the plugin filename to libfribidplugin.so to prevent
+    installation conflicts with Nexus Personal.
+  * Fixed two compile errors on 64-bit platforms.
+  * Fixed a couple of non-critical errors in the makefiles.
+  * Added build files for the Debian package format, and makefile rules
+    for .deb and .tar package creation.
+  * Better error handling.
+  * Made it impossible for a single web page to open multiple log in windows.
+  * Made person filtering work when authenticating. This is used on web sites
+    that let you enter your personal number as a separate step in the log in
+    process.
+
+
+0.0.9a - 2009-11-13
+  * Added license headers to a few files that lacked this information.
+
+
+0.0.9  - 2009-11-11
+  * Initial version.

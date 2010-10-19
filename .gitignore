@@ -1,0 +1,9 @@
+*.o
+*.so
+*.mo
+*.pot
+*~
+*#
+crap
+client/sign
+common/config.h
