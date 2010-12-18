@@ -1,3 +1,9 @@
+fribid (0.2.2-1) unstable; urgency=low
+
+  * Imported Upstream version 0.2.2
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sat, 18 Dec 2010 14:31:27 +0100
+
 fribid (0.2.1a-1) unstable; urgency=low
 
   * Initial release for Debian (Closes: #578563)
