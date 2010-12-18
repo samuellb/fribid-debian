@@ -25,18 +25,15 @@
 #ifndef __PLUGIN_H__
 #define __PLUGIN_H__
 
+#include <stdint.h>
 #include <X11/X.h>
+#include "../common/biderror.h"
 
 typedef enum {
     PT_Version,
     PT_Authentication,
     PT_Signer,
 } PluginType;
-
-typedef enum {
-    PE_OK = 0,
-    PE_UnknownError = 1, // Maybe this is used for something else in the original plugin?
-} PluginError;
 
 typedef struct {
     PluginType type;
@@ -45,12 +42,13 @@ typedef struct {
     char *hostname;
     char *ip;
     Window windowId;
-    PluginError lastError;
+    BankIDError lastError;
     
     union {
         struct {
             /* Input parameters */
             char *challenge;
+            int32_t serverTime;
             char *policys;
             char *subjectFilter;
             void *dummy0, *dummy1; // To be compatible with .sign below
@@ -60,6 +58,7 @@ typedef struct {
         struct {
             /* Input parameters */
             char *challenge;
+            int32_t serverTime;
             char *policys;
             char *subjectFilter;
             char *message;
