@@ -55,8 +55,10 @@ static void openPipes(PipeInfo *pipeinfo, const char *argv[]) {
     int pipeIn[2];
     int pipeOut[2];
     
-    pipe(pipeIn);
-    pipe(pipeOut);
+    if (pipe(pipeIn) == -1 || pipe(pipeOut) == -1) {
+        perror(BINNAME ": Failed to create pipe");
+        return;
+    }
     
     pipeinfo->child = fork();
     if (pipeinfo->child == 0) {
@@ -102,6 +104,15 @@ static void openInteractivePipes(PipeInfo *pipeinfo, Plugin *plugin) {
     openPipes(pipeinfo, argv);
 }
 
+static BankIDError waitReply(PipeInfo *pipeinfo) {
+    pipe_finishCommand(pipeinfo->out);
+    
+    pipe_waitData(pipeinfo->in);
+    
+    // Return error code
+    return pipe_readInt(pipeinfo->in);
+}
+
 static void closePipes(PipeInfo *pipeinfo) {
     fclose(pipeinfo->out);
     fclose(pipeinfo->in);
@@ -125,6 +136,7 @@ char *version_getVersion(Plugin *plugin) {
 
 static void sendSignCommon(PipeInfo pipeinfo, Plugin *plugin) {
     pipe_sendString(pipeinfo.out, plugin->info.auth.challenge);
+    pipe_sendInt(pipeinfo.out, plugin->info.auth.serverTime);
     pipe_sendOptionalString(pipeinfo.out, plugin->info.auth.policys);
     pipe_sendOptionalString(pipeinfo.out, plugin->info.auth.subjectFilter);
     pipe_sendString(pipeinfo.out, plugin->url);
@@ -140,10 +152,7 @@ int sign_performAction_Authenticate(Plugin *plugin) {
     
     sendSignCommon(pipeinfo, plugin);
     
-    pipe_finishCommand(pipeinfo.out);
-    
-    pipe_waitData(pipeinfo.in);
-    plugin->lastError = pipe_readInt(pipeinfo.in);
+    plugin->lastError = waitReply(&pipeinfo);
     plugin->info.auth.signature = pipe_readString(pipeinfo.in);
     closePipes(&pipeinfo);
     return plugin->lastError;
@@ -159,10 +168,7 @@ int sign_performAction_Sign(Plugin *plugin) {
     pipe_sendString(pipeinfo.out, plugin->info.sign.message);
     pipe_sendOptionalString(pipeinfo.out, plugin->info.sign.invisibleMessage);
     
-    pipe_finishCommand(pipeinfo.out);
-    
-    pipe_waitData(pipeinfo.in);
-    plugin->lastError = pipe_readInt(pipeinfo.in);
+    plugin->lastError = waitReply(&pipeinfo);
     plugin->info.auth.signature = pipe_readString(pipeinfo.in);
     closePipes(&pipeinfo);
     return plugin->lastError;
