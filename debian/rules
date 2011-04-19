@@ -16,6 +16,8 @@ else
     CFLAGS += -O2 -g
 endif
 
+# Hardening: http://wiki.debian.org/Hardening
+export DEB_BUILD_HARDENING=1
 
 configure:
 configure-stamp:
