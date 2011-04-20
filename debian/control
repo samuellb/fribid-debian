@@ -4,9 +4,9 @@ Priority: optional
 Maintainer: Samuel Lidén Borell <samuel@slbdata.se>
 Build-Depends: debhelper (>= 7.0.50~), pkg-config, gettext, libgtk2.0-dev (>= 2.18), libglib2.0-dev (>= 2.8), libssl-dev (>= 0.9.8), libp11-dev (>= 0.2.3), hardening-wrapper
 Standards-Version: 3.9.1
-Homepage: http://www.fribid.se/
+Homepage: https://www.fribid.se/
 Vcs-Git: git://github.com/samuellb/fribid-debian.git
-Vcs-Browser: http://github.com/samuellb/fribid-debian
+Vcs-Browser: https://github.com/samuellb/fribid-debian
 
 Package: fribid
 Architecture: any
