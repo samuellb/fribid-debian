@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2010-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -26,12 +26,7 @@
 #define __BACKEND_H__
 
 #include <stdbool.h>
-
-typedef enum {
-    KeyUsage_Issuing,
-    KeyUsage_Signing,
-    KeyUsage_Authentication,
-} KeyUsage;
+#include "../common/bidtypes.h"
 
 typedef struct _Token Token;
 
@@ -60,8 +55,10 @@ typedef enum {
 typedef enum  {
     TokenError_Success =      0,
     TokenError_Unknown =      1,
+    TokenError_NotImplemented,
     // File errors
     TokenError_FileNotReadable,
+    TokenError_CantCreateFile,
     TokenError_BadFile,
     TokenError_BadPassword,
     // Smart card errors
@@ -79,6 +76,15 @@ void backend_scanTokens();
 /* Function to manually add files */
 TokenError backend_addFile(BackendNotifier *notifier,
                            const char *file, size_t length, void *tag);
+
+/* Enrollment */
+TokenError backend_createRequest(const RegutilInfo *info,
+                                 const char *hostname,
+                                 const char *password,
+                                 char **request, size_t *reqlen);
+char *backend_getSubjectDisplayName(const char *dn);
+TokenError backend_storeCertificates(const char *p7data, size_t length,
+                                     const char *hostname);
 
 /* Token methods */
 TokenStatus token_getStatus(const Token *token);

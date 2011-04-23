@@ -18,7 +18,7 @@
 .\"  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 .\"  THE SOFTWARE.
 
-.TH fribid 7 "2010-10-10" "" "FriBID"
+.TH fribid 7 "2011-04-20" "" "FriBID"
 
 .SH NAMN
 fribid \- en webbläsarplugin för BankID
@@ -32,15 +32,17 @@ FriBID stödjer både e-legitimation på fil och e-legitimation på kort, med n�
 .IP -
 Det nya filformaten (NGE/NGP) från den officiella klienten av version 4.15.0.15 stöds ej.
 .IP -
-Det går inte att hämta nya e-legitimationer på fil.
-.IP -
 För att ändra lösenord/PIN behövs ett separat program (såsom openssl med underkommandot pkcs12).
 .IP -
 För att kunna använda e-legitimationer på kort krävs lite konfiguration, se http://wiki.fribid.se/sidor/SmartCards
 .LP
 Den officiella programvaran, BankID Säkerhetsprogram, har inte dessa begränsningar men stödjer å andra sidan inte alla platformar och webbläsare som FriBID stödjer.
-.LP
-FriBID är endast kompatibelt med den andra versionen av BankID, och inte den äldre som använder Java-applettar.
+
+.SH SKAFFA BANKID
+De flesta större banker utfärdar BankID, förutom Nordea och SEB som i skrivande stund använder andra tekniker (2011-04-20), men de planerar att gå över till BankID inom en snar framtid.
+
+Det finns två sorters e-legitimation som du kan använda från din dator: Kort och filer. Ett kort är säkrare men måste beställas via post, medan fil-legitimationer hämtas online via bankens webbsida. Båda stöds av FriBID, men för att kunna använda ett BankID på kort måste du ha en kortläsare som fungerar med OpenSC. Dessutom kan OpenSC behöva konfigureras för att fungera med din kortläsare.
+
 
 .SH IMPORT OCH EXPORT
 FriBID använder katalogerna
@@ -52,7 +54,7 @@ och
 .SH ATT ANVÄNDA FRIBID
 FriBID startas automatiskt när du besöker en webbsida som använder BankID för inloggning eller signering. Du kan testa ditt BankID-program \- vare sig du använder FriBID eller BankID Säkerhetsprogram \- på:
 .LP
-http://test.bankid.com/
+https://test.bankid.com/
 
 .SH VIKTIGT
 FriBID är
@@ -62,6 +64,6 @@ en officiell BankID-klient, och används helt på egen risk!
 .SH VIDARE INFORMATION
 Mer information hittar du på webbsidan:
 .LP
-http://fribid.se/
+https://fribid.se/
 
 

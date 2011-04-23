@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,14 +27,22 @@
 
 #include <stdio.h>
 
-#define PIPE_COMMAND_MAX 200
-
 // Commands to the main program
-#define PMC_Authenticate    1
-#define PMC_Sign            2
+typedef enum {
+    PC_GetVersion = 1,
+    PC_Authenticate,
+    PC_Sign,
+    PC_CreateRequest,
+    PC_StoreCertificates,
+} PipeCommand;
 
-int pipe_readCommand(FILE *in);
-void pipe_sendCommand(FILE *out, int command);
+typedef enum {
+    PLS_End = 0,
+    PLS_MoreData,
+} PipeListStatus;
+
+PipeCommand pipe_readCommand(FILE *in);
+void pipe_sendCommand(FILE *out, PipeCommand command);
 void pipe_finishCommand(FILE *out);
 void pipe_flush(FILE *out);
 

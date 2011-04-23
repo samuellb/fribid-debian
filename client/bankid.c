@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -338,4 +338,63 @@ BankIDError bankid_sign(Token *token,
     free(extra);
     return error;
 }
+
+/**
+ * Generates a new key pair and creates a certificate request.
+ *
+ * @param params     Parameters (from SetParam/InitRequest calls).
+ * @param password   A password or PIN entered on the keyboard.
+ * @param request    The certificate request, Base64 encoded.
+ * @param error      A more detailed error code is stored here
+ */
+BankIDError bankid_createRequest(const RegutilInfo *params,
+                                 const char *hostname,
+                                 const char *password,
+                                 char **request,
+                                 TokenError *error) {
+    *request = NULL;
+    
+    char *binaryRequest;
+    size_t brlen;
+    *error = backend_createRequest(params, hostname, password,
+                                   &binaryRequest, &brlen);
+    if (*error) return BIDERR_InternalError;
+    
+    // Encode with Base64
+    *request = base64_encode(binaryRequest, brlen);
+    free(binaryRequest);
+    if (!*request) {
+        *error = TokenError_Unknown;
+        return BIDERR_InternalError;
+    } else {
+        return BIDERR_OK;
+    }
+}
+
+/**
+ * Gets the first subject display name in a request.
+ */
+char *bankid_getRequestDisplayName(const RegutilInfo *params) {
+    // params->pkcs10 is the first request
+    if (!params->pkcs10 || !params->pkcs10->subjectDN) return NULL;
+    
+    return backend_getSubjectDisplayName(params->pkcs10->subjectDN);
+}
+
+/**
+ * Stores a certificate chain for a newly created key.
+ */
+BankIDError bankid_storeCertificates(const char *certs, const char *hostname) {
+    
+    size_t length;
+    char *p7data = base64_decode_binary(certs, &length);
+    
+    if (!p7data) return BIDERR_InternalError;
+    
+    BankIDError error = backend_storeCertificates(p7data, length, hostname);
+    
+    free(p7data);
+    return error;
+}
+
 

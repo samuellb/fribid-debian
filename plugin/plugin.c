@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 */
 
 #define _BSD_SOURCE 1
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,11 +32,10 @@
 #include <inttypes.h>
 #include <assert.h>
 #include "../common/biderror.h"
+#include <glib.h> // for g_ascii_strcasecmp
 
 #include "plugin.h"
 
-#define MAX_WINDOWS 20  // safety limit to avoid "popup storms"
-static const char *activeURLs[MAX_WINDOWS];
 
 Plugin *plugin_new(PluginType pluginType, const char *url,
                    const char *hostname, const char *ip,
@@ -57,9 +57,30 @@ Plugin *plugin_new(PluginType pluginType, const char *url,
     return plugin;
 }
 
+static void freePKCS10s(RegutilPKCS10 *pkcs10, bool freeSelf) {
+    while (pkcs10) {
+        RegutilPKCS10 *next = pkcs10->next;
+        free(pkcs10->subjectDN);
+        if (freeSelf) free(pkcs10);
+        pkcs10 = next;
+    }
+}
+
+static void freeCMCs(RegutilCMC *cmc, bool freeSelf) {
+    while (cmc) {
+        RegutilCMC *next = cmc->next;
+        free(cmc->oneTimePassword);
+        free(cmc->rfc2729cmcoid);
+        if (freeSelf) free(cmc);
+        cmc = next;
+    }
+}
+
+
 void plugin_free(Plugin *plugin) {
     switch (plugin->type) {
         case PT_Version:
+        case PT_Webadmin:
             break;
         case PT_Authentication:
             free(plugin->info.auth.challenge);
@@ -75,6 +96,12 @@ void plugin_free(Plugin *plugin) {
             free(plugin->info.sign.invisibleMessage);
             free(plugin->info.sign.signature);
             break;
+        case PT_Regutil:
+            freePKCS10s(&plugin->info.regutil.currentPKCS10, false);
+            freePKCS10s(plugin->info.regutil.input.pkcs10, true);
+            freeCMCs(&plugin->info.regutil.currentCMC, false);
+            freeCMCs(&plugin->info.regutil.input.cmc, false);
+            break;
     }
     free(plugin->url);
     free(plugin->hostname);
@@ -82,54 +109,40 @@ void plugin_free(Plugin *plugin) {
     free(plugin);
 }
 
-static bool findURLSlot(const char *url, int *index) {
-    for (int i = 0; i < MAX_WINDOWS; i++) {
-        const char *other = activeURLs[i];
-        if ((other == url) || (other && url && !strcmp(other, url))) {
-            if (index) *index = i;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool lockURL(const char *url) {
-    int index;
-    
-    // The URL has a window already
-    if (findURLSlot(url, NULL)) return false;
-    
-    // Reached MAX_WINDOWS
-    if (!findURLSlot(NULL, &index)) return false;
-    
-    activeURLs[index] = url;
-    return true;
-}
-
-static void unlockURL(const char *url) {
-    int index;
-    bool ok = findURLSlot(url, &index);
-    assert(ok);
-    activeURLs[index] = NULL;
-}
-
 static char **getCommonParamPointer(Plugin *plugin, const char *name) {
-    if (!strcmp(name, "Policys")) return &plugin->info.auth.policys;
-    if (!strcmp(name, "Signature")) return &plugin->info.auth.signature;
-    if (!strcmp(name, "Subjects")) return &plugin->info.sign.subjectFilter;
+    if (!g_ascii_strcasecmp(name, "Policys")) return &plugin->info.auth.policys;
+    if (!g_ascii_strcasecmp(name, "Signature")) return &plugin->info.auth.signature;
+    if (!g_ascii_strcasecmp(name, "Subjects")) return &plugin->info.sign.subjectFilter;
     return NULL;
 }
 
 static char **getParamPointer(Plugin *plugin, const char *name) {
     switch (plugin->type) {
         case PT_Authentication:
-            if (!strcmp(name, "Challenge")) return &plugin->info.auth.challenge;
+            if (!g_ascii_strcasecmp(name, "Challenge")) return &plugin->info.auth.challenge;
             return getCommonParamPointer(plugin, name);
         case PT_Signer:
-            if (!strcmp(name, "Nonce")) return &plugin->info.sign.challenge;
-            if (!strcmp(name, "TextToBeSigned")) return &plugin->info.sign.message;
-            if (!strcmp(name, "NonVisibleData")) return &plugin->info.sign.invisibleMessage;
+            if (!g_ascii_strcasecmp(name, "Nonce")) return &plugin->info.sign.challenge;
+            if (!g_ascii_strcasecmp(name, "TextToBeSigned")) return &plugin->info.sign.message;
+            if (!g_ascii_strcasecmp(name, "NonVisibleData")) return &plugin->info.sign.invisibleMessage;
             return getCommonParamPointer(plugin, name);
+        case PT_Regutil:
+            if (!g_ascii_strcasecmp(name, "SubjectDN")) return &plugin->info.regutil.currentPKCS10.subjectDN;
+            if (!g_ascii_strcasecmp(name, "OneTimePassword")) return &plugin->info.regutil.currentCMC.oneTimePassword;
+            return NULL;
+        default:
+            return NULL;
+    }
+}
+
+static int *getIntParamPointer(Plugin *plugin, const char *name) {
+    switch (plugin->type) {
+        case PT_Regutil:
+            if (!g_ascii_strcasecmp(name, "KeySize")) return &plugin->info.regutil.currentPKCS10.keySize;
+            if (!g_ascii_strcasecmp(name, "MinLen")) return &plugin->info.regutil.input.minPasswordLength;
+            if (!g_ascii_strcasecmp(name, "MinChars")) return &plugin->info.regutil.input.minPasswordNonDigits;
+            if (!g_ascii_strcasecmp(name, "MinDigits")) return &plugin->info.regutil.input.minPasswordDigits;
+            return NULL;
         default:
             return NULL;
     }
@@ -141,7 +154,7 @@ char *sign_getParam(Plugin *plugin, const char *name) {
                        plugin->type == PT_Signer);
     
     // Server time
-    if (authOrSign && !strcmp(name, "ServerTime")) {
+    if (authOrSign && !g_ascii_strcasecmp(name, "ServerTime")) {
         int32_t value = plugin->info.auth.serverTime;
         if (value <= 0) return strdup("");
         
@@ -163,7 +176,7 @@ bool sign_setParam(Plugin *plugin, const char *name, const char *value) {
                        plugin->type == PT_Signer);
     
     // Server time: This value is a 10-digit integer
-    if (authOrSign && !strcmp(name, "ServerTime")) {
+    if (authOrSign && !g_ascii_strcasecmp(name, "ServerTime")) {
         plugin->lastError = BIDERR_OK;
         
         size_t length = strlen(value);
@@ -214,32 +227,100 @@ static bool hasSignParams(const Plugin *plugin) {
 }
 
 int sign_performAction(Plugin *plugin, const char *action) {
-    plugin->lastError = BIDERR_InternalError;
-    if ((plugin->type == PT_Authentication) && !strcmp(action, "Authenticate")) {
-        if (!hasSignParams(plugin)) {
-            return BIDERR_MissingParameter;
-        } else {
-            if (!lockURL(plugin->url)) return BIDERR_InternalError;
-            int ret = sign_performAction_Authenticate(plugin);
-            unlockURL(plugin->url);
-            return ret;
-        }
-    } else if ((plugin->type == PT_Signer) && !strcmp(action, "Sign")) {
+    int ret = BIDERR_InvalidAction;
+    
+    if ((plugin->type == PT_Authentication) && !g_ascii_strcasecmp(action, "Authenticate")) {
+        ret = (hasSignParams(plugin) ?
+            sign_performAction_Authenticate(plugin) : BIDERR_MissingParameter);
+        
+    } else if ((plugin->type == PT_Signer) && !g_ascii_strcasecmp(action, "Sign")) {
         if (!hasSignParams(plugin) || !plugin->info.sign.message) {
             return BIDERR_MissingParameter;
-        } else {
-            if (!lockURL(plugin->url)) return BIDERR_InternalError;
-            int ret = sign_performAction_Sign(plugin);
-            unlockURL(plugin->url);
-            return ret;
         }
+        ret = (hasSignParams(plugin) && plugin->info.sign.message ?
+            sign_performAction_Sign(plugin) : BIDERR_MissingParameter);
+    }
+    
+    plugin->lastError = ret;
+    return ret;
+}
+
+void regutil_setParam(Plugin *plugin, const char *name, const char *value) {
+    char **strPtr;
+    int *intPtr;
+    
+    // Special parameters
+    if (!g_ascii_strcasecmp(name, "KeyUsage")) {
+        if (!strcmp(value, "digitalSignature")) {
+            plugin->info.regutil.currentPKCS10.keyUsage = KeyUsage_Authentication;
+        } else if (!strcmp(value, "nonRepudiation")) {
+            plugin->info.regutil.currentPKCS10.keyUsage = KeyUsage_Signing;
+        }
+        
+        plugin->lastError = BIDERR_OK; // Never return failure
+    } else if ((intPtr = getIntParamPointer(plugin, name)) != NULL) {
+        // Integer parameters
+        errno = 0;
+        int intval = strtol(value, NULL, 10);
+        if (!errno) *intPtr = intval;
+        plugin->lastError = (!errno ? BIDERR_OK : RUERR_InvalidValue);
+    } else if ((strPtr = getParamPointer(plugin, name)) != NULL) {
+        // String parameters
+        free(*strPtr);
+        *strPtr = strdup(value);
+        plugin->lastError = (*strPtr ? BIDERR_OK : BIDERR_InternalError);
+        
+        if (!g_ascii_strcasecmp(name, "SubjectDN")) {
+            plugin->info.regutil.currentPKCS10.includeFullDN = true;
+        }
+        
     } else {
-        return BIDERR_InvalidAction;
+        // Invalid parameter name
+        plugin->lastError = RUERR_InvalidParameter;
     }
 }
 
-int sign_getLastError(Plugin *plugin) {
-    return plugin->lastError;
+static char *safestrdup(const char *s) {
+    return (s ? strdup(s) : NULL);
 }
 
+/**
+ * Stores the current parameters so they get included with the request.
+ */
+void regutil_initRequest(Plugin *plugin, const char *type) {
+    if (!g_ascii_strcasecmp(type, "pkcs10")) {
+        // Limit number of objects
+        RegutilPKCS10 *other = plugin->info.regutil.input.pkcs10;
+        size_t count = 0;
+        for (; other; other = other->next) {
+            if (++count > 10) {
+                plugin->lastError = BIDERR_InternalError;
+                return;
+            }
+        }
+        
+        // Add PKCS10
+        RegutilPKCS10 *copy = malloc(sizeof(RegutilPKCS10));
+        memcpy(copy, &plugin->info.regutil.currentPKCS10, sizeof(RegutilPKCS10));
+        copy->subjectDN = safestrdup(plugin->info.regutil.currentPKCS10.subjectDN);
+        
+        copy->next = plugin->info.regutil.input.pkcs10;
+        plugin->info.regutil.input.pkcs10 = copy;
+        
+        plugin->info.regutil.currentPKCS10.includeFullDN = false;
+        plugin->lastError = BIDERR_OK;
+    } else if (!g_ascii_strcasecmp(type, "cmc")) {
+        // CMC
+        RegutilCMC *cmc = &plugin->info.regutil.input.cmc;
+        
+        free(cmc->oneTimePassword);
+        free(cmc->rfc2729cmcoid);
+        cmc->oneTimePassword = safestrdup(plugin->info.regutil.currentCMC.oneTimePassword);
+        cmc->rfc2729cmcoid = safestrdup(plugin->info.regutil.currentCMC.rfc2729cmcoid);
+        
+        plugin->lastError = BIDERR_OK;
+    } else {
+        plugin->lastError = RUERR_InvalidValue;
+    }
+}
 

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,26 +22,21 @@
 
 */
 
-#ifndef __MISC_H__
-#define __MISC_H__
+#ifndef __REQUEST_H__
+#define __REQUEST_H__
 
 #include <stdbool.h>
+#include <openssl/ssl.h>
 
-char *rasprintf(const char *format, ...);
-char *rasprintf_append(char *str, const char *format, ...);
-void *guaranteed_memset(void *v, int c, size_t n);
+// We would like to use STACK_OF but we use custom data types and defining
+// custom STACK_OF types outside of OpenSSL appears to be quite hard.
+#if OPENSSL_VERSION_NUMBER >= 0x01000000
+#define STACK _STACK
+#endif
 
-char *base64_encode(const char *data, const int length);
-char *base64_decode(const char *encoded);
-char *base64_decode_binary(const char *encoded, size_t *decodedLength);
-bool is_canonical_base64(const char *encoded);
-char *sha_base64(const char *str);
-
-bool is_valid_domain_name(const char *domain);
-bool is_valid_ip_address(const char *ip);
-bool is_valid_hostname(const char *hostname);
-bool is_https_url(const char *url);
+void request_wrap(STACK *reqs, char **der, size_t *derLength);
 
 #endif
+
 
 

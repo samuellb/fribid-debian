@@ -38,11 +38,13 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
+#include <sys/file.h>
 #include <assert.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
 #include "../common/defines.h"
+#include "misc.h"
 #include "platform.h"
 
 void platform_seedRandom() {
@@ -58,18 +60,51 @@ struct PlatformDirIter {
     struct dirent *entry;
 };
 
+/**
+ * Opens a file and locks it for reading or writing. If Platform_OpenCreate
+ * is specified as the mode then the file is created, and the function fails
+ * if it already exists to prevent overwrites and race conditions.
+ *
+ * @param mode  Either Platform_OpenRead or Platform_OpenCreate
+ */
+FILE *platform_openLocked(const char *filename, PlatformOpenMode mode) {
+    static const char *const stdio_modes[] = { "rb", "wb" };
+    static const int open_flags[] = { O_RDONLY, O_WRONLY|O_CREAT|O_EXCL };
+    static const int lock_flags[] = { LOCK_SH, LOCK_EX };
+    
+    int fd = open(filename, open_flags[mode], 0600);
+    if (fd == -1) return NULL;
+    
+    if (flock(fd, lock_flags[mode]) != 0) {
+        close(fd);
+        return NULL;
+    }
+    
+    return fdopen(fd, stdio_modes[mode]);
+}
+
+bool platform_closeLocked(FILE *file) {
+    flock(fileno(file), LOCK_UN);
+    return (fclose(file) == 0);
+}
+
+bool platform_deleteLocked(FILE *file, const char *filename) {
+    bool deleted = (remove(filename) == 0);
+    return platform_closeLocked(file) && deleted;
+}
+
 bool platform_readFile(const char *filename, char **data, int *length) {
-    FILE *file = fopen(filename, "rb");
+    FILE *file = platform_openLocked(filename, Platform_OpenRead);
     if (!file) return false;
     if (fseek(file, 0, SEEK_END) == -1) {
-        fclose(file);
+        platform_closeLocked(file);
         return false;
     }
     *length = ftell(file);
     fseek(file, 0, SEEK_SET);
     *data = malloc(*length);
     bool ok = (fread(*data, *length, 1, file) == 1);
-    fclose(file);
+    platform_closeLocked(file);
     return ok;
 }
 
@@ -129,6 +164,73 @@ void platform_keyDirs(char*** path, size_t* len) {
 PlatformDirIter *platform_openKeysDir(char *path) {
     PlatformDirIter *iter = platform_openDir(path);
     return iter;
+}
+
+/**
+ * Removes illegal characters from a filename.
+ *
+ * Returns NULL if the file name contains no legal characters.
+ */
+char *platform_filterFilename(const char *filename) {
+    // TODO remove invalid UTF-8 characters somewhere?
+    //      (maybe after decoding the base64 encoded input?)
+    
+    // Hidden files are not allowed
+    while (*filename == '.') filename++;
+    
+    // Strip out illegal characters
+    char *result = malloc(strlen(filename)+1);
+    if (!result) return NULL;
+    char *p = result;
+    char c;
+    bool lastWasSpace = true;
+    while ((c = *(filename++)) != '\0') {
+        // Control chars
+        if (c >= '\0' && c < ' ') c = ' ';
+        
+        // File system and shell characters
+        if (strchr("/\\:\"'$*?~&|#!;`", c)) c = '_';
+        if (c == '{' || c == '[') c = '(';
+        if (c == '}' || c == '}') c = ')';
+        
+        // Remove repeated spaces and leading space
+        bool isSpace = (c == ' ');
+        if (lastWasSpace && isSpace) continue;
+        lastWasSpace = isSpace;
+        
+        *(p++) = c;
+    }
+    
+    *p = '\0';
+    return result;
+}
+
+/**
+ * Makes a filename for a new certificate with a given name. This function
+ * is removes all dangerous special characters from nameAttr.
+ *
+ * The key store directory is created if needed.
+ */
+char *platform_getFilenameForKey(const char *nameAttr) {
+    char *basename = platform_filterFilename(nameAttr);
+    char *filename = NULL;
+    
+    if (!basename || !*basename) goto end;
+    
+    // Get key store path
+    size_t numPaths;
+    char **paths;
+    platform_keyDirs(&paths, &numPaths);
+    
+    // Create directory
+    if (mkdir(paths[0], 0700) != 0 && errno != EEXIST) goto end;
+    
+    // Merge
+    filename = rasprintf("%s/%s.p12", paths[0], basename);
+    
+  end:
+    if (basename) free(basename);
+    return filename;
 }
 
 void platform_asyncCall(AsyncCallFunction *function, void *param) {

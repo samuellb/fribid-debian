@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -28,11 +28,11 @@
 #include "config.h"
 
 #define PACKAGENAME         "FriBID"
-#define PACKAGEVERSION      "0.2.2"
+#define PACKAGEVERSION      "0.3.0"
 
 #define BINNAME             "fribid"
-#define RELEASE_TIME        1292676673
-#define IPCVERSION          "4"
+#define RELEASE_TIME        1303596088
+#define IPCVERSION          "9"
 
 #define EMULATED_VERSION    "4.15.0.14"
 #define DNSVERSION          "2"
