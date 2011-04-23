@@ -1,3 +1,14 @@
+fribid (0.3.0-1) unstable; urgency=low
+
+  * Imported upstream version 0.3.0. Notable changes include:
+      - [Security] Fixed empty "text to sign" with invalid UTF-8 data.
+      - Implemented support for obtaining file-based e-IDs.
+      - Compatibility with more sites.
+  * Build with hardening-wrapper.
+  * Updated links Homepage and Vcs-Browser links.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 24 Apr 2011 00:48:05 +0200
+
 fribid (0.2.2-1) unstable; urgency=low
 
   * Imported Upstream version 0.2.2
