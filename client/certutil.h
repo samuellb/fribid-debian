@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,33 @@
 
 */
 
-#ifndef __NPOBJECT_H__
-#define __NPOBJECT_H__
+#ifndef __CERTUTIL_H__
+#define __CERTUTIL_H__
 
-#include "plugin.h"
+// Certificate utilities
 
-#define MIME_VERSION "application/x-personal-version"
-#define MIME_AUTHENTICATION "application/x-personal-authentication"
-#define MIME_SIGNER "application/x-personal-signer2"
-#define MIME_REGUTIL "application/x-personal-regutil"
-#define MIME_WEBADMIN "application/x-personal-webadmin"
+#include <stdbool.h>
+#include <openssl/ssl.h>
+#include <openssl/pkcs12.h>
 
-typedef struct {
-    NPObject base;
-    Plugin *plugin;
-} PluginObject;
+#include "../common/bidtypes.h"
 
-NPObject *npobject_fromMIME(NPP instance, NPMIMEType mimeType);
+extern const int opensslKeyUsages[];
+
+X509_NAME *certutil_parse_dn(const char *s, bool fullDN);
+char *certutil_derEncode(X509 *cert);
+bool certutil_hasKeyUsage(X509 *cert, KeyUsage keyUsage);
+char *certutil_getNamePropertyByNID(X509_NAME *name, int nid);
+bool certutil_matchSubjectFilter(const char *subjectFilter, X509_NAME *name);
+bool certutil_compareX509Names(const X509_NAME *a, const X509_NAME *b,
+                               bool orderMightDiffer);
+X509 *certutil_findCert(const STACK_OF(X509) *certList,
+                        const X509_NAME *name,
+                        const KeyUsage keyUsage,
+                        bool orderMightDiffer);
+PKCS7 *certutil_parseP7SignedData(const char *p7data, size_t length);
+char *certutil_makeFilename(X509_NAME *xname);
+char *certutil_getBagAttr(PKCS12_SAFEBAG *bag, ASN1_OBJECT *oid);
 
 #endif
 

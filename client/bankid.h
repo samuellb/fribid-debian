@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 
 #include "backend.h"
 #include "../common/biderror.h"
+#include "../common/bidtypes.h"
 
 void bankid_checkVersionValidity();
 bool bankid_versionHasExpired();
@@ -46,6 +47,16 @@ BankIDError bankid_sign(Token *token,
                         const char *hostname, const char *ip,
                         const char *message, const char *invisibleMessage,
                         char **signature);
+
+BankIDError bankid_createRequest(const RegutilInfo *info,
+                                 const char *hostname,
+                                 const char *password,
+                                 char **request,
+                                 TokenError *error);
+
+char *bankid_getRequestDisplayName(const RegutilInfo *params);
+
+BankIDError bankid_storeCertificates(const char *certs, const char *hostname);
 
 #endif
 

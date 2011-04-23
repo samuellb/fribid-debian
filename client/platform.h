@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "backend.h"
 
 /* Initialization */
@@ -40,6 +41,10 @@ typedef void (PlatformPipeFunction) ();
 void platform_setupPipe(PlatformPipeFunction *pipeFunction);
 
 /* File IO */
+typedef enum { Platform_OpenRead, Platform_OpenCreate } PlatformOpenMode;
+FILE *platform_openLocked(const char *filename, PlatformOpenMode mode);
+bool platform_closeLocked(FILE *file);
+bool platform_deleteLocked(FILE *file, const char *filename);
 bool platform_readFile(const char *filename, char **data, int *length);
 
 typedef struct PlatformDirIter PlatformDirIter;
@@ -51,6 +56,8 @@ void platform_closeDir(PlatformDirIter *iter);
 
 void platform_keyDirs(char*** path, size_t* len);
 PlatformDirIter *platform_openKeysDir();
+char *platform_filterFilename(const char *filename);
+char *platform_getFilenameForKey(const char *nameAttr);
 
 /* Configuration */
 char *platform_getConfigPath(const char *appname);
@@ -87,6 +94,7 @@ uint32_t platform_lookupTypeARecord(const char *hostname);
 void platform_mainloop();
 void platform_leaveMainloop();
 
+/* Signature dialog */
 void platform_startSign(const char *url, const char *hostname, const char *ip,
                         unsigned long parentWindowId);
 void platform_endSign();
@@ -97,6 +105,13 @@ void platform_addToken(Token *token);
 void platform_removeToken(Token *token);
 bool platform_sign(Token **token, char *password, int password_maxlen);
 
+/* Password selection (and key generation) dialog */
+void platform_startChoosePassword(const char *name, unsigned long parentWindowId);
+void platform_setPasswordPolicy(int minLength, int minNonDigits, int minDigits);
+void platform_endChoosePassword();
+bool platform_choosePassword(char *password, long password_maxlen);
+
+/* Errors */
 void platform_showError(TokenError error);
 void platform_versionExpiredError();
 

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -96,6 +96,36 @@ static void removeNewlines(char *s) {
     *writep = '\0';
 }
 
+/**
+ * Checks if a string is in UTF-8 format. If not it tries to convert it from
+ * ISO-88591-1, and free's the UTF-8 string.
+ *
+ * @returns  An UTF-8 string, or NULL on error.
+ */
+static char *utf8_or_latin1(char *input, size_t length) {
+    // Check for NULL
+    if (length != strlen(input)) {
+        free(input);
+        return NULL;
+    }
+    
+    // Check for invalid unicode
+    if (g_utf8_validate(input, length, NULL)) return input;
+    
+    // Try to convert from ISO-8859-1
+    GError *error = NULL;
+    gchar *utf8 = g_convert(input, length, "UTF-8", "ISO-8859-1",
+                            NULL, NULL, &error);
+    free(input);
+    
+    if (!error) return (char*)utf8;
+    
+    // Neither valid UTF-8 or ISO-8859-1
+    g_error_free(error);
+    g_free(utf8);
+    return NULL;
+}
+
 char *base64_encode(const char *data, const int length) {
     if (length == 0) return strdup("");
     
@@ -114,11 +144,22 @@ char *base64_decode(const char *encoded) {
     result[length] = '\0';
     free(temp);
     
-    if (length != strlen(result)) {
+    return utf8_or_latin1(result, length);
+}
+
+char *base64_decode_binary(const char *encoded, size_t *decodedLength) {
+    gsize length;
+
+    char *result = (char*)g_base64_decode(encoded, &length);
+    *decodedLength = length;
+    
+    if (*decodedLength != length) {
+        // Integer overflow
+        free(result);
         return NULL;
     }
+    
     return result;
-
 }
 
 bool is_canonical_base64(const char *encoded) {

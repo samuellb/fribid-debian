@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2010-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@
 
 #include "../common/defines.h"
 #include "backend_private.h"
+#include "certutil.h"
 
 
 // Available backends
@@ -118,6 +119,54 @@ void backend_scanTokens(BackendNotifier *notifier)
 }
 
 /**
+ * Generates a key pair and creates a certificate request for it.
+ */
+TokenError backend_createRequest(const RegutilInfo *info,
+                                 const char *hostname,
+                                 const char *password,
+                                 char **request, size_t *reqlen) {
+    // TODO support smartcards too (if this is used anywhere)
+    TokenError error = TokenError_NotImplemented;
+    
+    Backend *backend = pkcs12_getBackend();
+    if (backend->init(backend) && backend->createRequest)
+        error = backend->createRequest(info, hostname, password,
+                                       request, reqlen);
+    
+    backend->free(backend);
+    return error;
+}
+
+/**
+ * Returns the display name of the given distinguished name
+ */
+char *backend_getSubjectDisplayName(const char *dn) {
+    X509_NAME *xname = certutil_parse_dn(dn, true);
+    if (!xname) return NULL;
+    
+    char *displayName = certutil_getNamePropertyByNID(xname, NID_name);
+    
+    X509_NAME_free(xname);
+    return displayName;
+}
+
+/**
+ * Stores a certificate chain for a request.
+ */
+TokenError backend_storeCertificates(const char *p7data, size_t length,
+                                     const char *hostname) {
+    // TODO support smartcards too (if this is used anywhere)
+    TokenError error = TokenError_NotImplemented;
+    
+    Backend *backend = pkcs12_getBackend();
+    if (backend->init(backend) && backend->storeCertificates)
+        error = backend->storeCertificates(p7data, length, hostname);
+    
+    backend->free(backend);
+    return error;
+}
+
+/**
  * Gets the status of a token.
  */
 TokenStatus token_getStatus(const Token *token) {
@@ -177,6 +226,4 @@ void token_free(Token *token) {
 TokenError token_getLastError(const Token *token) {
     return token->lastError;
 }
-
-
 

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,26 +22,42 @@
 
 */
 
-#ifndef __MISC_H__
-#define __MISC_H__
+#ifndef __BIDTYPES_H__
+#define __BIDTYPES_H__
 
 #include <stdbool.h>
 
-char *rasprintf(const char *format, ...);
-char *rasprintf_append(char *str, const char *format, ...);
-void *guaranteed_memset(void *v, int c, size_t n);
+typedef enum {
+    KeyUsage_Issuing,
+    KeyUsage_Signing,
+    KeyUsage_Authentication,
+} KeyUsage;
 
-char *base64_encode(const char *data, const int length);
-char *base64_decode(const char *encoded);
-char *base64_decode_binary(const char *encoded, size_t *decodedLength);
-bool is_canonical_base64(const char *encoded);
-char *sha_base64(const char *str);
+// regutil requests
+typedef struct PKCS10Request {
+    struct PKCS10Request *next;
+    
+    KeyUsage keyUsage;
+    int keySize;
+    char *subjectDN;
+    bool includeFullDN;
+} RegutilPKCS10;
 
-bool is_valid_domain_name(const char *domain);
-bool is_valid_ip_address(const char *ip);
-bool is_valid_hostname(const char *hostname);
-bool is_https_url(const char *url);
+typedef struct CMCRequest {
+    struct CMCRequest *next;
+    
+    char *oneTimePassword;
+    char *rfc2729cmcoid;
+} RegutilCMC;
+
+typedef struct {
+    int minPasswordLength;
+    int minPasswordNonDigits;
+    int minPasswordDigits;
+    
+    RegutilPKCS10 *pkcs10;
+    RegutilCMC cmc;
+} RegutilInfo;
 
 #endif
-
 

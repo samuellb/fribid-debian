@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -57,24 +57,29 @@ static void notifyCallback(Token *token, TokenChange change) {
 }
 
 /**
- * pipeData is called when the plugin has sent some data.
- * This happens when one of the Javascript methods of an
- * plugin object is called.
+ * Called when a command is being sent from the plugin.
  */
-void pipeData() {
-    int command = pipe_readCommand(stdin);
+void pipeCommand(PipeCommand command, const char *url, const char *hostname,
+                 const char *ip) {
     switch (command) {
-        case PMC_Authenticate:
-        case PMC_Sign: {
+        case PC_GetVersion: {
+            char *versionString = bankid_getVersion();
+            
+            pipe_sendString(stdout, versionString);
+            free(versionString);
+            pipe_flush(stdout);
+            
+            platform_leaveMainloop();
+            break;
+        }
+        case PC_Authenticate:
+        case PC_Sign: {
             char *challenge = pipe_readString(stdin);
             int32_t serverTime = pipe_readInt(stdin);
             free(pipe_readOptionalString(stdin)); // Just ignore the policies list for now
             char *subjectFilter = pipe_readOptionalString(stdin);
-            char *url = pipe_readString(stdin);
-            char *hostname = pipe_readString(stdin);
-            char *ip = pipe_readString(stdin);
             char *message = NULL, *invisibleMessage = NULL;
-            if (command == PMC_Sign) {
+            if (command == PC_Sign) {
                 message = pipe_readString(stdin);
                 invisibleMessage = pipe_readOptionalString(stdin);
             }
@@ -87,7 +92,7 @@ void pipeData() {
             } else if (!is_canonical_base64(challenge) ||
                        !is_valid_hostname(hostname) ||
                        !is_valid_ip_address(ip) ||
-                       (command == PMC_Sign && (
+                       (command == PC_Sign && (
                            !is_canonical_base64(message) ||
                            (invisibleMessage && !is_canonical_base64(invisibleMessage))
                        ))) {
@@ -136,7 +141,7 @@ void pipeData() {
             platform_startSign(url, hostname, ip, browserWindowId);
             BackendNotifier *notifier = backend_createNotifier(
                 decodedSubjectFilter,
-                (command == PMC_Sign ?
+                (command == PC_Sign ?
                     KeyUsage_Signing : KeyUsage_Authentication),
                 notifyCallback);
             platform_setNotifier(notifier);
@@ -144,7 +149,8 @@ void pipeData() {
             backend_scanTokens(notifier);
             free(decodedSubjectFilter);
             
-            if (message != NULL) {
+            if (command == PC_Sign) {
+                if (!message) abort();
                 char *decodedMessage = base64_decode(message);
                 platform_setMessage(decodedMessage);
                 free(decodedMessage);
@@ -159,7 +165,7 @@ void pipeData() {
                 token_usePassword(token, password);
                 
                 // Try to authenticate/sign
-                if (command == PMC_Authenticate) {
+                if (command == PC_Authenticate) {
                     error = bankid_authenticate(token, challenge, serverTime,
                                                 hostname, ip, &signature);
                 } else {
@@ -184,9 +190,6 @@ void pipeData() {
             free(message);
             free(invisibleMessage);
             free(challenge);
-            free(url);
-            free(hostname);
-            free(ip);
             
             pipe_sendInt(stdout, error);
             pipe_sendString(stdout, (signature ? signature : ""));
@@ -196,23 +199,129 @@ void pipeData() {
             platform_leaveMainloop();
             break;
         }
+        case PC_CreateRequest: {
+            char *request = NULL;
+            BankIDError error = BIDERR_InternalError;
+            long password_maxsize = 0;
+            char *name = NULL;
+            char *password = NULL;
+            
+            // Read input
+            RegutilInfo input;
+            memset(&input, 0, sizeof(input));
+            
+            input.minPasswordLength = pipe_readInt(stdin);
+            input.minPasswordNonDigits = pipe_readInt(stdin);
+            input.minPasswordDigits = pipe_readInt(stdin);
+            
+            while (pipe_readInt(stdin) == PLS_MoreData) {
+                // PKCS10
+                RegutilPKCS10 *pkcs10 = malloc(sizeof(RegutilPKCS10));
+                pkcs10->keyUsage = pipe_readInt(stdin);
+                pkcs10->keySize = pipe_readInt(stdin);
+                pkcs10->subjectDN = pipe_readString(stdin);
+                pkcs10->includeFullDN = pipe_readInt(stdin);
+                
+                pkcs10->next = input.pkcs10;
+                input.pkcs10 = pkcs10;
+            }
+            
+            // CMC
+            input.cmc.oneTimePassword = pipe_readString(stdin);
+            input.cmc.rfc2729cmcoid = pipe_readString(stdin);
+            
+            // Check for broken pipe
+            if (feof(stdin)) goto createReq_end;
+            
+            // Check input
+            if (!input.pkcs10) goto createReq_end;
+            
+            // Get name to display
+            name = bankid_getRequestDisplayName(&input);
+            if (!name) goto createReq_end;
+            
+            // Allocate a secure page for the password
+            password = secmem_get_page(&password_maxsize);
+            if (!password || !password_maxsize) goto createReq_end;
+            
+            platform_startChoosePassword(name, browserWindowId);
+            platform_setPasswordPolicy(input.minPasswordLength,
+                                       input.minPasswordNonDigits,
+                                       input.minPasswordDigits);
+            
+            if (bankid_versionHasExpired()) {
+                platform_versionExpiredError();
+            }
+            
+            for (;;) {
+                error = RUERR_UserCancel;
+                // Ask for a password
+                if (!platform_choosePassword(password, password_maxsize))
+                    break;
+                
+                // Try to authenticate/sign
+                // Generate key pair and construct the request
+                TokenError tokenError;
+                error = bankid_createRequest(&input, hostname, password,
+                                             &request, &tokenError);
+                
+                guaranteed_memset(password, 0, password_maxsize);
+                
+                if (error == BIDERR_OK) break;
+                
+                platform_showError(tokenError);
+            }
+            
+            platform_endChoosePassword();
+            
+            // Send result
+          createReq_end:
+            secmem_free_page(password);
+            pipe_sendInt(stdout, error);
+            
+            if (!request) pipe_sendString(stdout, "");
+            else {
+                pipe_sendString(stdout, request);
+                free(request);
+            }
+            
+            pipe_flush(stdout);
+            platform_leaveMainloop();
+            break;
+        }
+        case PC_StoreCertificates: {
+            // TODO maybe we should only allow the web site that called
+            //      CreateRequest to store certificates?
+            
+            char *certs = pipe_readString(stdin);
+            
+            BankIDError error = bankid_storeCertificates(certs, hostname);
+            
+            pipe_sendInt(stdout, error);
+            pipe_flush(stdout);
+            
+            platform_leaveMainloop();
+            break;
+        }
     }
 }
 
 /**
- * Processes some command line options that neither require a GUI or the NSS
- * libraries.
+ * pipeData is called when the plugin has sent some data.
+ * This happens when one of the Javascript methods of an
+ * plugin object is called.
  */
-int process_non_ui_args(int argc, char **argv) {
-    for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--internal--bankid-version-string")) {
-            char *versionString = bankid_getVersion();
-            printf("%s", versionString);
-            free(versionString);
-            return 1;
-        }
-    }
-    return 0;
+void pipeData() {
+    PipeCommand command = pipe_readCommand(stdin);
+    char *url = pipe_readString(stdin);
+    char *hostname = pipe_readString(stdin);
+    char *ip = pipe_readString(stdin);
+    
+    pipeCommand(command, url, hostname, ip);
+    
+    free(ip);
+    free(hostname);
+    free(url);
 }
 
 int main(int argc, char **argv) {
@@ -222,11 +331,6 @@ int main(int argc, char **argv) {
     platform_seedRandom();
     bankid_checkVersionValidity();
     
-    /* Parse command line and set up the UI component */
-    if (process_non_ui_args(argc, argv)) {
-        return 0;
-    }
-
     error = secmem_init_pool();
     if (error) {
         fprintf(stderr, BINNAME ": could not initialize secure memory");

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2010 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include <gtk/gtk.h>
 #include <glib.h>
 #include <assert.h>
+#include <errno.h>
 
 #include <locale.h>
 #include <libintl.h>
@@ -49,10 +50,14 @@ static const char *const errorStrings[] = {
     NULL,
     // TokenError_Unknown
     translatable("An unknown error occurred"),
+    // TokenError_NotImplemented
+    translatable("Not implemented yet"),
     
     // File errors
     // TokenError_FileNotReadable
     translatable("The file could not be read"),
+    // TokenError_CantCreateFile
+    translatable("The file could not be saved"),
     // TokenError_BadFile
     translatable("Invalid file format"),
     // TokenError_BadPassword,
@@ -115,11 +120,51 @@ static GtkLabel *info_label;
 
 static GtkListStore *tokens;
 static BackendNotifier *notifier;
-static bool dialogShown;
+static bool signDialogShown;
+
+/* Password choice and key generation dialog */
+static GtkDialog *keygenDialog;
+static GtkEntry *keygenPasswordEntry;
+static GtkEntry *keygenRepeatPasswordEntry;
+static int keygenPasswordMinLen;
+static int keygenPasswordMinDigits;
+static int keygenPasswordMinNonDigits;
+static bool keygenDialogShown;
+
+static GtkDialog *activeDialog;
+
+/**
+ * Makes a dialog window stay above it's parent window.
+ */
+static void makeDialogTransient(GtkDialog *dialog, unsigned long parentWindowId) {
+    bool transientOk = false;
+    
+    if (parentWindowId != PLATFORM_NO_WINDOW) {
+        GdkWindow *parent = gdk_window_foreign_new((GdkNativeWindow)parentWindowId);
+        if (parent != NULL) {
+            gtk_widget_realize(GTK_WIDGET(dialog));
+#if GTK_CHECK_VERSION(2, 14, 0)
+            GdkWindow *ourWindow = gtk_widget_get_window(GTK_WIDGET(dialog));
+#else
+            GdkWindow *ourWindow = GTK_WIDGET(dialog)->window;
+#endif
+            if (ourWindow != NULL) {
+                gdk_window_set_transient_for(ourWindow, parent);
+                transientOk = true;
+                //g_object_unref(G_OBJECT(ourWindow));
+            }
+            g_object_unref(G_OBJECT(parent));
+        }
+    }
+    
+    if (!transientOk) {
+        gtk_window_set_keep_above(GTK_WINDOW(dialog), TRUE);
+    }
+}
 
 static void showMessage(GtkMessageType type, const char *text) {
     GtkWidget *dialog = gtk_message_dialog_new(
-        GTK_WINDOW(signDialog), GTK_DIALOG_DESTROY_WITH_PARENT,
+        GTK_WINDOW(activeDialog), GTK_DIALOG_DESTROY_WITH_PARENT,
         type, GTK_BUTTONS_CLOSE, "%s", text);
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
@@ -267,36 +312,15 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
     vbox = GTK_VBOX(gtk_builder_get_object(builder, "vbox1"));
     gtk_box_pack_end(GTK_BOX(vbox), GTK_WIDGET (info_bar), TRUE, FALSE, 2);
 
-    signDialog = GTK_DIALOG(gtk_builder_get_object(builder, "dialog_sign"));
+    activeDialog = signDialog = GTK_DIALOG(gtk_builder_get_object(builder, "dialog_sign"));
     
-    bool transientOk = false;
-    if (parentWindowId != PLATFORM_NO_WINDOW) {
-        GdkWindow *parent = gdk_window_foreign_new((GdkNativeWindow)parentWindowId);
-        if (parent != NULL) {
-            gtk_widget_realize(GTK_WIDGET(signDialog));
-#if GTK_CHECK_VERSION(2, 14, 0)
-            GdkWindow *ourWindow = gtk_widget_get_window(GTK_WIDGET(signDialog));
-#else
-            GdkWindow *ourWindow = GTK_WIDGET(signDialog)->window;
-#endif
-            if (ourWindow != NULL) {
-                gdk_window_set_transient_for(ourWindow, parent);
-                transientOk = true;
-                //g_object_unref(G_OBJECT(ourWindow));
-            }
-            g_object_unref(G_OBJECT(parent));
-        }
-    }
-    
-    if (!transientOk) {
-        gtk_window_set_keep_above(GTK_WINDOW(signDialog), TRUE);
-    }
+    makeDialogTransient(signDialog, parentWindowId);
     
     platform_setMessage(NULL);
     validateDialog(NULL, NULL);
     
     gtk_window_set_modal(GTK_WINDOW(signDialog), TRUE);
-    dialogShown = false;
+    signDialogShown = false;
 }
 
 void platform_endSign() {
@@ -339,7 +363,7 @@ void platform_setMessage(const char *message) {
         gtk_widget_show(signScroller);
         
         gtk_window_set_title(GTK_WINDOW(signDialog), _("Signing"));
-        gtk_label_set_label(GTK_LABEL(operationLabel), _("<big><b>Signing on: </b></big>"));
+        gtk_label_set_label(GTK_LABEL(operationLabel), _("<big><b>Create signature on: </b></big>"));
         gtk_label_set_label(GTK_LABEL(signButtonLabel), _("_Sign"));
     }
 }
@@ -366,7 +390,11 @@ void platform_addKeyDirectories() {
         if (dir) {
             while (platform_iterateDir(dir)) {
                 char *filename = platform_currentPath(dir);
-                addTokenFile(filename);
+                
+                if (!strstr(filename, ".tmp")) {
+                    addTokenFile(filename);
+                }
+                
                 free(filename);
             }
             platform_closeDir(dir);
@@ -445,7 +473,9 @@ static void selectExternalFile() {
             GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
             GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
             (char *)NULL));
-    if (gtk_dialog_run(GTK_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT) {
+    activeDialog = GTK_DIALOG(chooser);
+    
+    while (gtk_dialog_run(GTK_DIALOG(chooser)) == GTK_RESPONSE_ACCEPT) {
         gchar *filename = gtk_file_chooser_get_filename(chooser);
         
         removeTokenFile(filename);
@@ -454,12 +484,12 @@ static void selectExternalFile() {
         error = addTokenFile(filename);
         
         g_free(filename);
+        if (error) platform_showError(error);
+        else break;
     }
-    gtk_widget_destroy(GTK_WIDGET(chooser));
     
-    if (error) {
-        platform_showError(error);
-    }
+    activeDialog = signDialog;
+    gtk_widget_destroy(GTK_WIDGET(chooser));
 }
 
 #define RESPONSE_OK       10
@@ -477,10 +507,10 @@ bool platform_sign(Token **token, char *password, int password_maxlen) {
     // password buffer
     gtk_entry_set_max_length(passwordEntry, password_maxlen-1);
     
-    if (!dialogShown) {
+    if (!signDialogShown) {
         selectDefaultToken();
         gtk_widget_show(GTK_WIDGET(signDialog));
-        dialogShown = true;
+        signDialogShown = true;
     }
     
     while ((response = gtk_dialog_run(signDialog)) == RESPONSE_EXTERNAL) {
@@ -510,9 +540,140 @@ bool platform_sign(Token **token, char *password, int password_maxlen) {
     }
 }
 
+
+void platform_startChoosePassword(const char *name, unsigned long parentWindowId) {
+    
+    GtkBuilder *builder = gtk_builder_new();
+    GError *error = NULL;
+    
+    if (!gtk_builder_add_from_file(builder, UI_GTK_XML, &error)) {
+        fprintf(stderr, BINNAME ": Failed to open GtkBuilder XML: %s\n", error->message);
+        g_error_free(error);
+        return;
+    }
+    
+    gtk_label_set_text(GTK_LABEL(gtk_builder_get_object(builder, "label_keygen_name")),
+                       name);
+    
+    keygenPasswordEntry = GTK_ENTRY(gtk_builder_get_object(builder, "entry_keygen_password"));
+    keygenRepeatPasswordEntry = GTK_ENTRY(gtk_builder_get_object(builder, "entry_keygen_repeat"));
+    
+    activeDialog = keygenDialog = GTK_DIALOG(gtk_builder_get_object(builder, "dialog_keygen"));
+    
+    makeDialogTransient(keygenDialog, parentWindowId);
+    
+    gtk_window_set_modal(GTK_WINDOW(keygenDialog), TRUE);
+    keygenDialogShown = false;
+}
+
+void platform_setPasswordPolicy(int minLength, int minNonDigits, int minDigits) {
+    keygenPasswordMinLen = minLength;
+    keygenPasswordMinNonDigits = minNonDigits;
+    keygenPasswordMinDigits = minDigits;
+}
+
+void platform_endChoosePassword() {
+    gtk_widget_destroy(GTK_WIDGET(keygenDialog));
+    
+}
+
+static bool weakPassword(int length, int minimum, const char *format) {
+    if (length < minimum) {
+        char *error = rasprintf(format, minimum);
+        showMessage(GTK_MESSAGE_ERROR, error);
+        g_free(error);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+bool platform_choosePassword(char *password, long password_maxlen) {
+    // Restrict the password to the length of the preallocated
+    // password buffer
+    gtk_entry_set_max_length(keygenPasswordEntry, password_maxlen-1);
+    gtk_entry_set_max_length(keygenRepeatPasswordEntry, password_maxlen-1);
+    
+    if (!keygenDialogShown) {
+        gtk_widget_show(GTK_WIDGET(keygenDialog));
+        keygenDialogShown = true;
+    }
+    
+    for (;;) {
+        gint response = gtk_dialog_run(keygenDialog);
+        
+        if (response == GTK_RESPONSE_OK) {
+            // Check if the passwords match
+            
+            // TODO disable the button when passwords don't match and show
+            //      an explanation in an info bar, instead of showing an
+            //      error dialog
+            if (strcmp(gtk_entry_get_text(keygenPasswordEntry),
+                       gtk_entry_get_text(keygenRepeatPasswordEntry))) {
+                // Did not match
+                showMessage(GTK_MESSAGE_ERROR, _("The passwords don't match!"));
+                continue;
+            }
+            
+            // Check password policy
+            const char *pwtext = gtk_entry_get_text(keygenPasswordEntry);
+            int pwlen = g_utf8_strlen(pwtext, -1);
+            
+            int numDigits = 0;
+            int numNonDigits = 0;
+            const char *c = pwtext;
+            while (*c) {
+                if (*c >= '0' && *c <= '9') numDigits++;
+                else numNonDigits++;
+                c = g_utf8_find_next_char(c, NULL);
+            }
+            
+            if (weakPassword(pwlen, keygenPasswordMinLen,
+                    ngettext("The password must be at least one character",
+                             "The password must be at least %d characters",
+                             keygenPasswordMinLen)) ||
+                weakPassword(numNonDigits, keygenPasswordMinNonDigits,
+                    ngettext("The password must have at least one character that is not a digit",
+                             "The password must have at least %d characters that are not digits",
+                             keygenPasswordMinNonDigits)) ||
+                weakPassword(numDigits, keygenPasswordMinDigits,
+                    ngettext("The password must have at least one digit",
+                             "The password must have at least %d digits",
+                             keygenPasswordMinDigits))) {
+                // Not OK
+                continue;
+            }
+            
+            // Copy the password to the secure buffer
+            strncpy(password, pwtext, password_maxlen-1);
+            // Be sure to terminate this under all circumstances
+            password[password_maxlen-1] = '\0';
+            return true;
+        } else {
+            // User pressed cancel or closed the dialog
+            return false;
+        }
+    }
+}
+
+
 void platform_showError(TokenError error) {
     assert(error != TokenError_Success);
-    showMessage(GTK_MESSAGE_ERROR, gettext(errorStrings[error]));
+    
+    int lastErrno = errno;
+    const char *text = gettext(errorStrings[error]);
+    char *longText;
+    
+    switch (error) {
+        case TokenError_FileNotReadable:
+        case TokenError_CantCreateFile:
+            longText = rasprintf("%s\n\n%s", text, g_strerror(lastErrno));
+            showMessage(GTK_MESSAGE_ERROR, longText);
+            g_free(longText);
+            break;
+        default:
+            showMessage(GTK_MESSAGE_ERROR, text);
+            break;
+    }
 }
 
 void platform_versionExpiredError() {
