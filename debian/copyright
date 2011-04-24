@@ -3,7 +3,10 @@ Name: FriBID
 Source: http://www.fribid.se/
 
 Files: *, debian/*
-Copyright: 2009-2010, Samuel Lidén Borell
+Copyright: 2009-2011, Samuel Lidén Borell
+           2010, Marcus Carlsson
+           2010, Henrik Nordström
+           2010, Linus Walleij
 License: Expat
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
