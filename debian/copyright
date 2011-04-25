@@ -4,7 +4,7 @@ Source: http://www.fribid.se/
 
 Files: *, debian/*
 Copyright: 2009-2011, Samuel Lidén Borell
-           2010, Marcus Carlsson
+           2010, Marcus Carlson
            2010, Henrik Nordström
            2010, Linus Walleij
 License: Expat
