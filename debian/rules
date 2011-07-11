@@ -25,16 +25,19 @@ configure-stamp:
 	./configure --prefix=/usr --optional-pkcs11 --plugin-path=/usr/lib/iceweasel/plugins --plugin-path=/usr/lib/mozilla/plugins --plugin-path=/usr/lib/midbrowser/plugins --plugin-path=/usr/lib/xulrunner-addons/plugins --plugin-path=/usr/lib/firefox/plugins --plugin-path=/usr/lib/xulrunner/plugins --plugin-path=/usr/lib/iceape/plugins
 	touch $@
 
-build: build-stamp
-build-stamp: configure-stamp
+build: build-arch
+build-arch: build-arch-stamp
+build-arch-stamp: configure-stamp
 	dh_testdir
 	$(MAKE)
 	touch $@
 
+build-indep:
+
 clean:
 	dh_testdir
 	dh_testroot
-	rm -f configure-stamp build-stamp
+	rm -f configure-stamp build-arch-stamp
 	rm -rf $(CURDIR)/debian/fribid
 	$(MAKE) distclean
 	dh_clean
@@ -46,7 +49,7 @@ install: build
 	dh_installdirs
 	$(MAKE) DESTDIR=$(CURDIR)/debian/fribid install
 
-build-indep: build install
+binary-indep: build install
 
 binary-arch: build install
 	dh_installchangelogs
@@ -66,5 +69,5 @@ binary-arch: build install
 	dh_builddeb
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install configure
+.PHONY: build build-arch build-indep clean binary-indep binary-arch binary install configure
 
