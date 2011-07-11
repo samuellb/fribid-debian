@@ -58,7 +58,8 @@ NPError NPP_GetValue(NPP instance, NPPVariable variable, void *value) {
             *((const char**)value) = "Nexus Personal";
             return NPERR_NO_ERROR;
         case NPPVpluginDescriptionString:
-            *((const char**)value) = PACKAGENAME " version " PACKAGEVERSION;
+            *((const char**)value) = "<a href=\"" PACKAGEURL "\">" PACKAGENAME
+                                     "</a> version " PACKAGEVERSION;
             return NPERR_NO_ERROR;
         case NPPVpluginScriptableNPObject:
             *((NPObject**)value) = (NPObject*)instance->pdata;
@@ -82,6 +83,10 @@ char *NPP_GetMIMEDescription() {
            MIME_SIGNER ":" NO_FILE_EXTENSIONS ":Signer2;"
            MIME_REGUTIL ":" NO_FILE_EXTENSIONS ":Regutil;"
            MIME_WEBADMIN ":" NO_FILE_EXTENSIONS ":Webadmin";
+}
+
+const char *NPP_GetPluginVersion() {
+    return PACKAGEVERSION;
 }
 
 NPError NPP_Initialize() {
