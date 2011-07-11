@@ -32,6 +32,7 @@ License: MPL-1.1 or GPL-2+ or LGPL-2.1+
 
 Files: npapi/jni_md.h, npapi/jri.h, npapi/jri_md.h, npapi/jritypes.h, npapi/npapi.h, npapi/npupp.h
 Copyright: 1998, Netscape Communications Corporation
+           2000, International Business Machines Corporation
 License: MPL-1.1 or GPL-2+ or LGPL-2.1+
 
 Files: npapi/np_entry.c, npapi/npn_gate.c
