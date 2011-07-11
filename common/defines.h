@@ -27,11 +27,16 @@
 
 #include "config.h"
 
+#if (!defined(CONFIGVERSION) || CONFIGVERSION < 2) && !defined(CALLED_FROM_CONFIGURE)
+#error config.h is outdated or non-existent. Please run ./configure
+#endif
+
 #define PACKAGENAME         "FriBID"
-#define PACKAGEVERSION      "0.3.0"
+#define PACKAGEVERSION      "0.3.1"
+#define PACKAGEURL          "https://www.fribid.se/"
 
 #define BINNAME             "fribid"
-#define RELEASE_TIME        1303596088
+#define RELEASE_TIME        1310406425
 #define IPCVERSION          "9"
 
 #define EMULATED_VERSION    "4.15.0.14"
@@ -41,8 +46,6 @@
 #define LIB_PATH            LIBDIR "/" BINNAME
 #define SHARE_PATH          DATADIR "/" BINNAME
 #define DOC_PATH            DATADIR "/doc/" BINNAME
-#define MANDIR              DATADIR "/man"
-#define LOCALEDIR           DATADIR "/locale"
 
 #define SIGNING_EXECUTABLE  LIB_PATH "/sign"
 #define UI_PATH             SHARE_PATH "/ui"
