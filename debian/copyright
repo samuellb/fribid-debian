@@ -26,13 +26,11 @@ License: Expat
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 
-Files: npapi/jni.h
+Files: npapi/jni.h, npapi/jni_md.h, npapi/jri.h, npapi/jri_md.h, npapi/jritypes.h, npapi/npapi.h, npapi/nptypes.h, npapi/prcpucfg.h, npapi/prtypes.h, npapi/npupp.h
 Copyright: 1993-1996, Netscape Communications Corporation and Sun Microsystems, Inc.
-License: MPL-1.1 or GPL-2+ or LGPL-2.1+
-
-Files: npapi/jni_md.h, npapi/jri.h, npapi/jri_md.h, npapi/jritypes.h, npapi/npapi.h, npapi/npupp.h
-Copyright: 1998, Netscape Communications Corporation
+           1998-2000, Netscape Communications Corporation
            2000, International Business Machines Corporation
+           2004, mozilla.org
 License: MPL-1.1 or GPL-2+ or LGPL-2.1+
 
 Files: npapi/np_entry.c, npapi/npn_gate.c
@@ -43,14 +41,6 @@ License: NPL-1.1 or GPL-2+ or LGPL-2.1+
 Files: npapi/npruntime.h
 Copyright: 2004, Apple Computer, Inc. and The Mozilla Foundation.
 License: BSD
-
-Files: npapi/nptypes.h
-Copyright: 2004, mozilla.org
-License: MPL-1.1 or GPL-2+ or LGPL-2.1+
-
-Files: npapi/prcpucfg.h, npapi/prtypes.h
-Copyright: 1998-2000, Netscape Communications Corporation
-License: MPL-1.1 or GPL-2+ or LGPL-2.1+
 
 
 License: MPL-1.1
