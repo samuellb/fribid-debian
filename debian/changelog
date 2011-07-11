@@ -1,3 +1,12 @@
+fribid (0.3.1-1) unstable; urgency=low
+
+  * Imported upstream version 0.3.1.
+  * Updated copyright information
+  * Bumped Standards-Version to 3.9.2, added build-arch/indep rules
+  * Thanks to Ruben Molina for reviewing the previos version.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Mon, 11 Jul 2011 21:35:55 +0200
+
 fribid (0.3.0-1) unstable; urgency=low
 
   * Imported upstream version 0.3.0. Notable changes include:
