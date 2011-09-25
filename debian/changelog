@@ -1,3 +1,9 @@
+fribid (1.0.0-1) unstable; urgency=low
+
+  * Imported upstream version 1.0.0.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 25 Sep 2011 15:25:26 +0200
+
 fribid (0.3.1-1) unstable; urgency=low
 
   * Imported upstream version 0.3.1.
