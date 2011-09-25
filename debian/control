@@ -11,8 +11,8 @@ Vcs-Browser: https://github.com/samuellb/fribid-debian
 Package: fribid
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Recommends: iceweasel (>= 3) | firefox (>= 3) | midori (>= 0.2) | epiphany-browser (>= 2.22) | iceape-browser (>= 2) | chromium-browser
-Suggests: libopensc2, pcscd, opensc
+Recommends: iceweasel (>= 3) | firefox (>= 3) | midori (>= 0.2) | epiphany-browser (>= 2.22) | iceape-browser (>= 2) | iceape | chromium-browser | chromium
+Suggests: pcscd, opensc
 Description: web browser plugin for BankID
  FriBID is a web browser plugin for BankID, a kind of electronic ID
  (e-legitimation) that's used in Sweden. It supports file-based

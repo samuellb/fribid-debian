@@ -1,3 +1,9 @@
+fribid (1.0.0-2) unstable; urgency=low
+
+  * Updated the suggested and recommended packages.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 25 Sep 2011 15:38:28 +0200
+
 fribid (1.0.0-1) unstable; urgency=low
 
   * Imported upstream version 1.0.0.
