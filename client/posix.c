@@ -99,31 +99,39 @@ bool platform_deleteLocked(FILE *file, const char *filename) {
 }
 
 bool platform_readFile(const char *filename, char **data, int *length) {
+    bool ok = false;
     FILE *file = platform_openLocked(filename, Platform_OpenRead);
-    if (!file) return false;
-    if (fseek(file, 0, SEEK_END) == -1) {
-        platform_closeLocked(file);
-        return false;
-    }
+    if (!file) goto end;
+    
+    // Determine length of file
+    if (fseek(file, 0, SEEK_END) == -1) goto end;
     *length = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    if (*length == -1) goto end;
+    
+    // Read contents
+    if (fseek(file, 0, SEEK_SET) == -1) goto end;
     *data = malloc(*length);
-    bool ok = (fread(*data, *length, 1, file) == 1);
-    platform_closeLocked(file);
+    if (*data) {
+        ok = (fread(*data, *length, 1, file) == 1);
+    }
+    
+  end:
+    if (file) platform_closeLocked(file);
     return ok;
 }
 
 PlatformDirIter *platform_openDir(const char *pathname) {
     PlatformDirIter *iter = malloc(sizeof(PlatformDirIter));
+    if (!iter) return NULL;
     iter->dir = opendir(pathname);
-    if (!iter->dir) {
-        free(iter);
-        return NULL;
-    }
-    
     iter->path = strdup(pathname);
     iter->entry = NULL;
-    return iter;
+    
+    if (iter->dir && iter->path) return iter;
+    
+    // Error
+    platform_closeDir(iter);
+    return NULL;
 }
 
 bool platform_iterateDir(PlatformDirIter *iter) {
@@ -139,11 +147,7 @@ char *platform_currentName(PlatformDirIter *iter) {
 }
 
 char *platform_currentPath(PlatformDirIter *iter) {
-    char *path = malloc(strlen(iter->path) + strlen(iter->entry->d_name) + 2);
-    strcpy(path, iter->path);
-    strcat(path, "/");
-    strcat(path, iter->entry->d_name);
-    return path;
+    return rasprintf("%s/%s", iter->path, iter->entry->d_name);
 }
 
 void platform_closeDir(PlatformDirIter *iter) {
@@ -159,11 +163,8 @@ void platform_keyDirs(char*** path, size_t* len) {
     static char *paths[NUM_PATHS];
     *len = (NUM_PATHS - 1);
     *path = paths;
-    paths[0] = malloc(strlen(getenv("HOME")) + strlen(suffix) + 2);
-    sprintf(paths[0], "%s/%s", getenv("HOME"), suffix);
-
-    paths[1] = malloc(strlen(getenv("HOME")) + strlen(hidden_suffix) + 2);
-    sprintf(paths[1], "%s/%s", getenv("HOME"), hidden_suffix);
+    paths[0] = rasprintf("%s/%s", getenv("HOME"), suffix);
+    paths[1] = rasprintf("%s/%s", getenv("HOME"), hidden_suffix);
 }
 
 PlatformDirIter *platform_openKeysDir(char *path) {

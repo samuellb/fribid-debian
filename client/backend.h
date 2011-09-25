@@ -63,6 +63,8 @@ typedef enum  {
     TokenError_BadPassword,
     // Smart card errors
     TokenError_BadPin,
+    // Key generation errors
+    TokenError_NoRandomState,
 } TokenError;
 
 /* Notification methods */
@@ -71,7 +73,7 @@ BackendNotifier *backend_createNotifier(const char *subjectFilter,
                                         BackendNotifyFunction notifyFunction);
 void backend_freeNotifier(BackendNotifier *notifier);
 
-void backend_scanTokens();
+void backend_scanTokens(BackendNotifier *notifier);
 
 /* Function to manually add files */
 TokenError backend_addFile(BackendNotifier *notifier,
