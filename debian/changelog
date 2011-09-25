@@ -1,3 +1,9 @@
+fribid (1.0.0-3) unstable; urgency=low
+
+  * Fix lintian errors in copyright file
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 25 Sep 2011 15:45:34 +0200
+
 fribid (1.0.0-2) unstable; urgency=low
 
   * Updated the suggested and recommended packages.
