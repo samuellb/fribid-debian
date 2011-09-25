@@ -36,6 +36,7 @@ typedef enum {
     PT_Signer,
     PT_Regutil,
     PT_Webadmin,
+    PT_OldSigner,
 } PluginType;
 
 typedef struct {
@@ -64,6 +65,7 @@ typedef struct {
             int32_t serverTime;
             char *policys;
             char *subjectFilter;
+            char *messageEncoding;
             char *message;
             char *invisibleMessage;
             /* Output parameters */

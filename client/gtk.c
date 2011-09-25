@@ -67,6 +67,10 @@ static const char *const errorStrings[] = {
     // Smart card errors
     // TokenError_BadPin
     translatable("Incorrect PIN"),
+    
+    // Key generation errors
+    //TokenError_NoRandomState,
+    translatable("No random state available (/dev/(u)random must exist)"),
 };
 
 
@@ -141,7 +145,7 @@ static void makeDialogTransient(GtkDialog *dialog, unsigned long parentWindowId)
     bool transientOk = false;
     
     if (parentWindowId != PLATFORM_NO_WINDOW) {
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(2, 24, 0)
         GdkDisplay *display = gdk_display_get_default();
         GdkWindow *parent = gdk_x11_window_foreign_new_for_display(display,
             (Window)parentWindowId);
@@ -298,6 +302,10 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
                                renderer, TRUE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(tokenCombo),
                                    renderer, "text", 0, (char *)NULL);
+    
+    // Set displayname as the sort column
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(tokens);
+    gtk_tree_sortable_set_sort_column_id(sortable, 0, GTK_SORT_ASCENDING);
     
     // Used to dim the "Sign" button when no signature has been selected
     g_signal_connect(G_OBJECT(tokenCombo), "changed",

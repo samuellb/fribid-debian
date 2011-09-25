@@ -177,7 +177,7 @@ static bool objInvokeSafe(PluginObject *this, const char *name,
                 
                 const NPString *type_nps = &NPVARIANT_TO_STRING(args[0]);
                 bool type_is_p7c = (type_nps->utf8length == 3 &&
-                                    !strcmp(type_nps->utf8characters, "p7c"));
+                                    !strncmp(type_nps->utf8characters, "p7c", 3));
                 char *certs = variantToStringZ(&args[1]);
                 
                 // TODO set the error code instead of just failing and throwing a script exception
@@ -213,6 +213,9 @@ static bool objInvokeSafe(PluginObject *this, const char *name,
                 INT32_TO_NPVARIANT((int32_t)this->plugin->lastError, *result);
                 return true;
             }
+            return false;
+        case PT_OldSigner:
+            // Not implemented
             return false;
         default:
             return false;
@@ -334,6 +337,8 @@ NPObject *npobject_fromMIME(NPP instance, NPMIMEType mimeType) {
         return npobject_new(instance, PT_Regutil);
     } else if (!strcmp(mimeType, MIME_WEBADMIN)) {
         return npobject_new(instance, PT_Webadmin);
+    } else if (!strcmp(mimeType, MIME_OLDSIGNER)) {
+        return npobject_new(instance, PT_OldSigner);
     } else {
         return NULL;
     }

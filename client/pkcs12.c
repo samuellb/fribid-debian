@@ -36,6 +36,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 #include <openssl/safestack.h>
 
 typedef struct _PKCS12Token PKCS12Token;
@@ -277,24 +278,26 @@ static TokenError _backend_getBase64Chain(const PKCS12Token *token,
         return TokenError_Unknown;
     }
     
-    *count = 1;
-    *certs = malloc(sizeof(char*));
-    (*certs)[0] = certutil_derEncode(cert);
+    *count = 0;
+    *certs = NULL;
+    if (!certutil_addToList(certs, count, cert)) goto error;
     
     X509_NAME *issuer = X509_get_issuer_name(cert);
     while (issuer != NULL) {
         cert = certutil_findCert(certList, issuer, KeyUsage_Issuing, false);
         if (!cert) break;
         
-        // TODO use serial number also?
         issuer = X509_get_issuer_name(cert);
-        (*count)++;
-        *certs = realloc(*certs, *count * sizeof(char*));
-        (*certs)[*count-1] = certutil_derEncode(cert);
+        
+        if (!certutil_addToList(certs, count, cert)) goto error;
     }
     
     sk_X509_pop_free(certList, X509_free);
     return TokenError_Success;
+    
+  error:
+    certutil_freeList(certs, count);
+    return TokenError_Unknown;
 }
 
 static TokenError _backend_sign(PKCS12Token *token,
@@ -471,6 +474,10 @@ TokenError _backend_createRequest(const RegutilInfo *info,
                                   const char *password,
                                   char **request, size_t *reqlen) {
     // OpenSSL seeds the PRNG automatically, see the manual page for RAND_add.
+    if (!RAND_status()) {
+        fprintf(stderr, BINNAME ": no random state!\n");
+        return TokenError_NoRandomState;
+    }
     
     // Abort if there are no requests
     *request = NULL;

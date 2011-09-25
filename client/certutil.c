@@ -37,7 +37,7 @@ typedef struct {
     const int nid;
 } DNAttrInfo;
 
-#define NUM_DN_ATTRS 15
+#define NUM_DN_ATTRS 14
 
 /**
  * Returns an object identifier NID for a field name. This function uses
@@ -107,14 +107,21 @@ X509_NAME *certutil_parse_dn(const char *s, bool fullDN) {
     ASN1_OBJECT *obj = NULL;
     
     while (*s != '\0') {
+        // Ignore leading whitespace (this includes whitespace after a comma)
+        while (g_ascii_isspace(*s)) s++;
+        
         // Parse attribute
-        size_t nameLength = strcspn(s, ",+=");
+        size_t nameLength = strcspn(s, "=,;+");
         if (s[nameLength] != '=') goto error;
         
         const char *value = &s[nameLength+1];
         // TODO handle escaped data
-        size_t valueLength = strcspn(value, "+,");
+        size_t valueLength = strcspn(value, ",;+");
         if (value[valueLength] == '+') goto error; // Not supported
+        
+        // Ignore trailing whitespace
+        const char *end = &s[nameLength+1+valueLength];
+        while (g_ascii_isspace(value[valueLength-1])) valueLength--;
         
         // Parse attribute name
         char *field = g_strndup(s, nameLength);
@@ -136,8 +143,8 @@ X509_NAME *certutil_parse_dn(const char *s, bool fullDN) {
         obj = NULL;
         
         // Go to next attribute
-        s += nameLength+1+valueLength;
-        if (*s == ',') s++;
+        s = end;
+        if (*s == ',' || *s == ';') s++;
     }
     
     // Add the attributes to the subject name in reverse order
@@ -210,8 +217,10 @@ char *certutil_getNamePropertyByNID(X509_NAME *name, int nid) {
     if (length < 0) return NULL;
     
     text = malloc(length+1);
-    text[0] = '\0'; // if the function would fail
-    X509_NAME_get_text_by_NID(name, nid, text, length+1);
+    if (text) {
+        text[0] = '\0'; // if the function would fail
+        X509_NAME_get_text_by_NID(name, nid, text, length+1);
+    }
     return text;
 }
 
@@ -277,6 +286,41 @@ X509 *certutil_findCert(const STACK_OF(X509) *certList,
     return NULL;
 }
 
+/**
+ * Adds a certificate to a list. The certificate will be DER-encoded.
+ * For empty lists, list should point to a NULL pointer and count point
+ * to a zero integer.
+ */
+bool certutil_addToList(char ***list, size_t *count, X509 *cert) {
+    
+    char *certDer = certutil_derEncode(cert);
+    if (!certDer) goto error;
+    
+    char **extended = realloc(*list, (*count+1) * sizeof(char*));
+    if (!extended) goto error;
+    
+    extended[*count] = certDer;
+    *list = extended;
+    (*count)++;
+    return true;
+    
+  error:
+    free(certDer);
+    return false;
+}
+
+/**
+ * Frees a list of certificates.
+ */
+void certutil_freeList(char ***list, size_t *count) {
+    if (!*list) return;
+    
+    for (size_t i = *count; i-- > 0; ) {
+        free((*list)[i]);
+    }
+    free(*list);
+}
+
 
 PKCS7 *certutil_parseP7SignedData(const char *p7data, size_t length) {
     // Parse data
@@ -334,8 +378,10 @@ char *certutil_getBagAttr(PKCS12_SAFEBAG *bag, ASN1_OBJECT *oid) {
     // Copy the value to a string
     int len = at->value.printablestring->length;
     char *str = malloc(len+1);
-    if (str) memcpy(str, at->value.printablestring->data, len);
-    str[len] = '\0';
+    if (str) {
+        memcpy(str, at->value.printablestring->data, len);
+        str[len] = '\0';
+    }
     return str;
 }
 
