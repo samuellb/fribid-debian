@@ -1,3 +1,9 @@
+fribid (1.0.0-4) unstable; urgency=low
+
+  * No changes, just close ITP (Closes: #578563)
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Mon, 02 Jan 2012 23:07:06 +0100
+
 fribid (1.0.0-3) unstable; urgency=low
 
   * Fix lintian errors in copyright file
