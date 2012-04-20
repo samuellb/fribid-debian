@@ -1,3 +1,9 @@
+fribid (1.0.1a-1) unstable; urgency=low
+
+  * Upstream version 1.0.1a
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Fri, 20 Apr 2012 19:11:24 +0200
+
 fribid (1.0.0-4) unstable; urgency=low
 
   * No changes, just close ITP (Closes: #578563)
