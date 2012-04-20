@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2012 Samuel Lidén Borell <samuel@slbdata.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,16 @@
 
 */
 
-#ifndef XMLDSIG_H
-#define XMLDSIG_H
+#ifndef PREFS_H
+#define PREFS_H
 
-#include "backend.h"
+#ifdef ENABLE_PKCS11
+extern const char *prefs_pkcs11_module;
+#endif
+extern const char *prefs_bankid_emulatedversion;
 
-char *xmldsig_sign(Token *token, const char *dataId, const char *data);
+void prefs_load();
 
 #endif
+
 

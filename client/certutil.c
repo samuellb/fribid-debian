@@ -26,11 +26,19 @@
 #include <stdlib.h>
 #include <glib.h>
 #include <openssl/asn1t.h>
+#include <openssl/err.h>
 
 #include "../common/defines.h"
+#ifdef ENABLE_PKCS11
+#include <libp11.h>
+#endif
+
 #include "misc.h"
 #include "platform.h"
 #include "certutil.h"
+
+
+static char *error_string = NULL;
 
 typedef struct {
     const char *name;
@@ -198,7 +206,7 @@ bool certutil_hasKeyUsage(X509 *cert, KeyUsage keyUsage) {
 
     usage = X509_get_ext_d2i(cert, NID_key_usage, NULL, NULL);
     if (usage) {
-        const int opensslKeyUsage = opensslKeyUsages[keyUsage];
+        int opensslKeyUsage = opensslKeyUsages[keyUsage];
         supported = (usage->length > 0) &&
                     ((usage->data[0] & opensslKeyUsage) == opensslKeyUsage);
         ASN1_BIT_STRING_free(usage);
@@ -222,6 +230,32 @@ char *certutil_getNamePropertyByNID(X509_NAME *name, int nid) {
         X509_NAME_get_text_by_NID(name, nid, text, length+1);
     }
     return text;
+}
+
+/**
+ * Returns a string to be displayed for a X509_NAME. First, it tries NID_name,
+ * then it falls backs to concatenate the firstnames and lastnames.
+ */
+char *certutil_getDisplayNameFromDN(X509_NAME *xname) {
+    char *display = certutil_getNamePropertyByNID(xname, NID_name);
+    
+    if (!display) {
+        /* Try with First Last */
+        char *first = certutil_getNamePropertyByNID(xname, NID_givenName);
+        char *last = certutil_getNamePropertyByNID(xname, NID_surname);
+        if (first && last) {
+            display = rasprintf("%s %s", first, last);
+        } else if (first) {
+            display = first;
+            first = NULL;
+        } else if (last) {
+            display = last;
+            last = NULL;
+        }
+        free(first);
+        free(last);
+    }
+    return display;
 }
 
 bool certutil_matchSubjectFilter(const char *subjectFilter, X509_NAME *name) {
@@ -273,7 +307,7 @@ bool certutil_compareX509Names(const X509_NAME *a, const X509_NAME *b,
 
 X509 *certutil_findCert(const STACK_OF(X509) *certList,
                         const X509_NAME *name,
-                        const KeyUsage keyUsage,
+                        KeyUsage keyUsage,
                         bool orderMightDiffer) {
     int num = sk_X509_num(certList);
     for (int i = 0; i < num; i++) {
@@ -324,10 +358,8 @@ void certutil_freeList(char ***list, size_t *count) {
 
 PKCS7 *certutil_parseP7SignedData(const char *p7data, size_t length) {
     // Parse data
-    BIO *bio = BIO_new_mem_buf((void *)p7data, length);
-    if (!bio) return NULL;
-    PKCS7 *p7 = d2i_PKCS7_bio(bio, NULL);
-    BIO_free(bio);
+    const unsigned char *temp = (const unsigned char*)p7data;
+    PKCS7 *p7 = d2i_PKCS7(NULL, &temp, length);
     
     // Check that it's valid and contains certificates
     if (!p7 || !PKCS7_type_is_signed(p7) || !p7->d.sign || !p7->d.sign->cert ||
@@ -383,6 +415,23 @@ char *certutil_getBagAttr(PKCS12_SAFEBAG *bag, ASN1_OBJECT *oid) {
         str[len] = '\0';
     }
     return str;
+}
+
+void certutil_clearErrorString() {
+    error_string = NULL;
+}
+
+void certutil_updateErrorString() {
+    ERR_load_crypto_strings();
+#if ENABLE_PKCS11
+    ERR_load_PKCS11_strings();
+#endif
+    error_string = ERR_error_string(ERR_get_error(), NULL);
+    fprintf(stderr, BINNAME ": error from OpenSSL or libP11: %s\n", error_string);
+}
+
+char *certutil_getErrorString() {
+    return error_string;
 }
 
 

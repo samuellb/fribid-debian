@@ -39,7 +39,7 @@
 #include <openssl/rand.h>
 #include <openssl/safestack.h>
 
-typedef struct _PKCS12Token PKCS12Token;
+typedef struct PKCS12Token PKCS12Token;
 #define TokenType PKCS12Token
 
 #include "../common/defines.h"
@@ -54,7 +54,7 @@ typedef struct {
     PKCS12 *data;
 } SharedPKCS12;
 
-struct _PKCS12Token {
+struct PKCS12Token {
     Token base;
     
     SharedPKCS12 *sharedP12;
@@ -76,15 +76,12 @@ static void _backend_free(Backend *backend) {
  * Parses a P12 file and returns a parsed representation of the file, with
  * a reference count so it can be shared by multiple tokens.
  */
-static SharedPKCS12 *pkcs12_parse(const char *p12Data, const int p12Length) {
-    BIO *bio;
+static SharedPKCS12 *pkcs12_parse(const char *p12Data, int p12Length) {
+    const unsigned char *temp = (const unsigned char*)p12Data;
     PKCS12 *data;
     
     // Parse P12 data
-    bio = BIO_new_mem_buf((void *)p12Data, p12Length);
-    if (!bio) return NULL;
-    data = d2i_PKCS12_bio(bio, NULL);
-    BIO_free(bio);
+    data = d2i_PKCS12(NULL, &temp, p12Length);
     if (!data) return NULL;
     
     // Create a reference counted object
@@ -114,7 +111,10 @@ static void pkcs12_release(SharedPKCS12 *sharedP12) {
 static EVP_PKEY *getPrivateKey(PKCS12 *p12, X509 *x509, const char* pass) {
     // Extract all PKCS7 safes
     STACK_OF(PKCS7) *pkcs7s = PKCS12_unpack_authsafes(p12);
-    if (!pkcs7s) return NULL;
+    if (!pkcs7s) {
+        certutil_updateErrorString();
+        return NULL;
+    }
     
     // For each PKCS7 safe
     int nump = sk_PKCS7_num(pkcs7s);
@@ -168,6 +168,7 @@ static STACK_OF(X509) *pkcs12_listCerts(PKCS12 *p12) {
     // Extract all PKCS7 safes
     STACK_OF(PKCS7) *pkcs7s = PKCS12_unpack_authsafes(p12);
     if (!pkcs7s) {
+        certutil_updateErrorString();
         sk_X509_free(x509s);
         return NULL;
     }
@@ -178,7 +179,10 @@ static STACK_OF(X509) *pkcs12_listCerts(PKCS12 *p12) {
         PKCS7 *p7 = sk_PKCS7_value(pkcs7s, p);
         if (!p7) continue;
         STACK_OF(PKCS12_SAFEBAG) *safebags = PKCS12_unpack_p7data(p7);
-        if (!safebags) continue;
+        if (!safebags) {
+            certutil_updateErrorString();
+            continue;
+        }
         
         // For each PKCS12 safebag
         int numb = sk_PKCS12_SAFEBAG_num(safebags);
@@ -189,7 +193,9 @@ static STACK_OF(X509) *pkcs12_listCerts(PKCS12 *p12) {
             if (M_PKCS12_bag_type(bag) == NID_certBag) {
                 // Extract x509 cert
                 X509 *x509 = PKCS12_certbag2x509(bag);
-                if (x509 != NULL) {
+                if (x509 == NULL) {
+                    certutil_updateErrorString();
+                } else {
                     sk_X509_push(x509s, x509);
                 }
             }
@@ -211,7 +217,7 @@ static PKCS12Token *createToken(const Backend *backend, SharedPKCS12 *sharedP12,
     if (!token) return NULL;
     token->base.backend = backend;
     token->base.status = TokenStatus_NeedPassword;
-    token->base.displayName = certutil_getNamePropertyByNID(id, NID_name);
+    token->base.displayName = certutil_getDisplayNameFromDN(id);
     token->base.tag = tag;
     token->sharedP12 = sharedP12;
     token->subjectName = id;
@@ -308,7 +314,7 @@ static TokenError _backend_sign(PKCS12Token *token,
     assert(signature != NULL);
     assert(siglen != NULL);
     
-    if (messagelen >= UINT_MAX) return TokenError_Unknown;
+    if (messagelen >= UINT_MAX) return TokenError_MessageTooLong;
     
     // Find the certificate for the token
     STACK_OF(X509) *certList = pkcs12_listCerts(token->sharedP12->data);
@@ -347,8 +353,9 @@ static TokenError _backend_sign(PKCS12Token *token,
     if (success) {
         return TokenError_Success;
     } else {
+        certutil_updateErrorString();
         free(*signature);
-        return TokenError_Unknown;
+        return TokenError_SignatureFailure;
     }
 }
 
@@ -397,7 +404,7 @@ static TokenError saveKeys(const CertReq *reqs, const char *hostname,
         X509 *cert = NULL;
         ASN1_OBJECT *objOwningHost = NULL;
         uint32_t keyid = htonl(localKeyId++);
-        error_count++; // Decremented on success
+        bool success = false;
         
         // Add private key
         PKCS12_SAFEBAG *bag = PKCS12_add_key(&bags, reqs->privkey,
@@ -441,9 +448,13 @@ static TokenError saveKeys(const CertReq *reqs, const char *hostname,
         
         
         // Success!
-        error_count--;
+        success = true;
         
       loop_end:
+        if (!success) {
+            error_count--;
+            certutil_updateErrorString();
+        }
         ASN1_OBJECT_free(objOwningHost);
         X509_free(cert);
         sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
@@ -455,7 +466,10 @@ static TokenError saveKeys(const CertReq *reqs, const char *hostname,
     
     // Create the PKCS12 wrapper
     p12 = PKCS12_add_safes(authsafes, 0);
-    if (!p12) goto end;
+    if (!p12) {
+        certutil_updateErrorString();
+        goto end;
+    }
     PKCS12_set_mac(p12, (char*)password, -1, NULL, 0, MAC_ITER, NULL);
     
     // Save file
@@ -521,8 +535,11 @@ TokenError _backend_createRequest(const RegutilInfo *info,
         if (!x509req ||
             !X509_REQ_set_version(x509req, 0) ||
             !X509_REQ_set_subject_name(x509req, subject) ||
-            !X509_REQ_set_pubkey(x509req, privkey)) // yes this is correct(!)
+            !X509_REQ_set_pubkey(x509req, privkey)) { // yes this is correct(!)
+            
+            certutil_updateErrorString();
             goto req_error;
+        }
         
         // Set attributes
         exts = sk_X509_EXTENSION_new_null();
@@ -532,13 +549,17 @@ TokenError _backend_createRequest(const RegutilInfo *info,
         if (!ext || !sk_X509_EXTENSION_push(exts, ext))
             goto req_error;
         
-        if (!X509_REQ_add_extensions(x509req, exts))
+        if (!X509_REQ_add_extensions(x509req, exts)) {
+            certutil_updateErrorString();
             goto req_error;
+        }
         exts = NULL;
         
         // Add signature
-        if (!X509_REQ_sign(x509req, privkey, EVP_sha1()))
+        if (!X509_REQ_sign(x509req, privkey, EVP_sha1())) {
+            certutil_updateErrorString();
             goto req_error;
+        }
         
         // Store in list
         CertReq *req = malloc(sizeof(CertReq));
@@ -627,7 +648,10 @@ static TokenError storeCertificates(STACK_OF(X509) *certs,
     if (!orig) goto end;
     d2i_PKCS12_fp(orig, &p12);
     platform_closeLocked(orig);
-    if (!p12) goto end;
+    if (!p12) {
+        certutil_updateErrorString();
+        goto end;
+    }
     
     // For each PKCS7 safe
     authsafes = PKCS12_unpack_authsafes(p12);
@@ -659,7 +683,10 @@ static TokenError storeCertificates(STACK_OF(X509) *certs,
             
             // Extract cert from bag
             X509 *cert = PKCS12_certbag2x509(bag);
-            if (!cert) continue;
+            if (!cert) {
+                certutil_updateErrorString();
+                continue;
+            }
             
             // Get subject name and key usage
             X509_NAME *name = X509_get_subject_name(cert);
@@ -667,7 +694,7 @@ static TokenError storeCertificates(STACK_OF(X509) *certs,
             ASN1_BIT_STRING *usage = X509_get_ext_d2i(cert, NID_key_usage,
                                                       NULL, NULL);
             if (name && usage && usage->length > 0) {
-                const KeyUsage keyUsage =
+                KeyUsage keyUsage =
                     ((usage->data[0] & X509v3_KU_NON_REPUDIATION) == X509v3_KU_NON_REPUDIATION ?
                         KeyUsage_Signing : KeyUsage_Authentication);
                 
@@ -730,7 +757,10 @@ static TokenError storeCertificates(STACK_OF(X509) *certs,
     if (!modified || !p12) goto end;
     
     // Save
-    if (!i2d_PKCS12_fp(newFile, p12)) goto end;
+    if (!i2d_PKCS12_fp(newFile, p12)) {
+        certutil_updateErrorString();
+        goto end;
+    }
     
     if (platform_closeLocked(newFile)) {
        newFile = NULL;
@@ -778,8 +808,8 @@ TokenError _backend_storeCertificates(const char *p7data, size_t length,
                                                   NULL, NULL);
         if (usage && usage->length > 0 &&
             (usage->data[0] & (X509v3_KU_DIGITAL_SIGNATURE | X509v3_KU_NON_REPUDIATION)) != 0) {
-            // CA certs generally can be used for signatures,
-            // so assume this is should be our own cert
+            // Issuer certs generally can't be used for signatures,
+            // so assume this is our own cert
             self = cert;
             break;
         }
