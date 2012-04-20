@@ -42,6 +42,7 @@
 #include "bankid.h"
 #include "platform.h"
 #include "misc.h"
+#include "certutil.h"
 
 #define _(string) gettext(string)
 #define translatable(string) (string)
@@ -53,6 +54,10 @@ static const char *const errorStrings[] = {
     translatable("An unknown error occurred"),
     // TokenError_NotImplemented
     translatable("Not implemented yet"),
+    // TokenError_MessageTooLong
+    translatable("Message to sign is too long"),
+    // TokenError_SignatureFailure
+    translatable("Failed to create signature"),
     
     // File errors
     // TokenError_FileNotReadable
@@ -271,7 +276,7 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
     
     GtkBuilder *builder = gtk_builder_new();
     GError *error = NULL;
-    GtkVBox *vbox;
+    GtkBox *box;
     GtkContainer *content_area;
     
     if (!gtk_builder_add_from_file(builder, UI_GTK_XML, &error)) {
@@ -320,8 +325,8 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
     gtk_container_add(GTK_CONTAINER(content_area), GTK_WIDGET (info_label));
     gtk_widget_show(GTK_WIDGET(info_label));
 
-    vbox = GTK_VBOX(gtk_builder_get_object(builder, "vbox1"));
-    gtk_box_pack_end(GTK_BOX(vbox), GTK_WIDGET (info_bar), TRUE, FALSE, 2);
+    box = GTK_BOX(gtk_builder_get_object(builder, "vbox1"));
+    gtk_box_pack_end(box, GTK_WIDGET (info_bar), TRUE, FALSE, 2);
 
     activeDialog = signDialog = GTK_DIALOG(gtk_builder_get_object(builder, "dialog_sign"));
     
@@ -420,7 +425,7 @@ static gboolean addTokenFunc(gpointer ptr) {
     const char *filename = (char *)token_getTag(token);
     
     // Check for errors
-    const TokenError error = token_getLastError(token);
+    TokenError error = token_getLastError(token);
     if (error) {
         platform_showError(error);
         return FALSE;
@@ -492,6 +497,7 @@ static void selectExternalFile() {
         removeTokenFile(filename);
         
         // Add an item to the token list and select it
+        certutil_clearErrorString();
         error = addTokenFile(filename);
         
         g_free(filename);
@@ -513,6 +519,7 @@ static void selectExternalFile() {
  */
 bool platform_sign(Token **token, char *password, int password_maxlen) {
     guint response;
+    certutil_clearErrorString();
 
     // Restrict the password to the length of the preallocated
     // password buffer
@@ -682,7 +689,13 @@ void platform_showError(TokenError error) {
             g_free(longText);
             break;
         default:
-            showMessage(GTK_MESSAGE_ERROR, text);
+            if (certutil_getErrorString()) {
+                longText = rasprintf("%s\n\n%s", text, certutil_getErrorString());
+                showMessage(GTK_MESSAGE_ERROR, longText);
+                g_free(longText);
+            } else {
+                showMessage(GTK_MESSAGE_ERROR, text);
+            }
             break;
     }
 }

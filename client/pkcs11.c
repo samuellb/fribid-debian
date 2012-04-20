@@ -38,8 +38,8 @@
 #include <openssl/safestack.h>
 #include <stdio.h>
 
-typedef struct _PKCS11Token PKCS11Token;
-typedef struct _PKCS11Private PKCS11Private;
+typedef struct PKCS11Token PKCS11Token;
+typedef struct PKCS11Private PKCS11Private;
 #define TokenType PKCS11Token
 #define BackendPrivateType PKCS11Private
 
@@ -47,15 +47,16 @@ typedef struct _PKCS11Private PKCS11Private;
 #include "certutil.h"
 #include "misc.h"
 #include "backend_private.h"
+#include "prefs.h"
 
-struct _PKCS11Token {
+struct PKCS11Token {
     Token base;
     PKCS11_SLOT *slot;
     PKCS11_CERT *certs;
     unsigned int ncerts;
 };
 
-struct _PKCS11Private {
+struct PKCS11Private {
     PKCS11_CTX *ctx;
     unsigned int nslots;
     PKCS11_SLOT *slots;
@@ -67,7 +68,7 @@ static void _backend_freeToken(PKCS11Token *token) {
 
 static X509 *findCert(const PKCS11Token *token,
                       const X509_NAME *name,
-                      const KeyUsage keyUsage) {
+                      KeyUsage keyUsage) {
     for (unsigned int i = 0; i < token->ncerts; i++) {
         X509 *cert = token->certs[i].x509;
         if (!X509_NAME_cmp(X509_get_subject_name(cert), name) &&
@@ -124,7 +125,7 @@ static TokenError _backend_sign(PKCS11Token *token,
     assert(signature != NULL);
     assert(siglen != NULL);
     
-    if (messagelen >= UINT_MAX) return TokenError_Unknown;
+    if (messagelen >= UINT_MAX) return TokenError_MessageTooLong;
     
     if (token->slot->token->loginRequired) {
         if (PKCS11_login(token->slot, 0, token->base.password) != 0)
@@ -145,9 +146,10 @@ static TokenError _backend_sign(PKCS11Token *token,
     int rc = PKCS11_sign(NID_sha1, shasum, SHA1_LENGTH, (unsigned char*)*signature, &sigLen, key);
     *siglen = sigLen;
     if (rc != 1) {
+        certutil_updateErrorString();
         free(*signature);
         *signature = NULL;
-        return TokenError_Unknown;
+        return TokenError_SignatureFailure;
     }
     return TokenError_Success;
 }
@@ -184,7 +186,7 @@ static void pkcs11_found_token(Backend *backend, PKCS11_SLOT *slot) {
     } else {
         token->base.status = TokenStatus_NeedPIN;
     }
-    token->base.displayName = certutil_getNamePropertyByNID(id, NID_name);
+    token->base.displayName = certutil_getDisplayNameFromDN(id);
     token->base.tag = slot->token->label;
     backend->notifier->notifyFunction(&token->base, TokenChange_Added);
     return;
@@ -219,11 +221,11 @@ static bool _backend_init(Backend *backend) {
     backend->private->ctx = PKCS11_CTX_new();
 
     /* load pkcs #11 module */
-    // TODO: Runtime config parameter
-    if (PKCS11_CTX_load(backend->private->ctx, DEFAULT_PKCS11_MODULE) != 0) {
+    if (PKCS11_CTX_load(backend->private->ctx, prefs_pkcs11_module) != 0) {
         unsigned long error = ERR_get_error();
         if (!expected_error(error)) {
-            fprintf(stderr, BINNAME ": loading pkcs11 module failed: %s\n",
+            fprintf(stderr, BINNAME ": loading pkcs11 module %s failed: %s\n",
+                prefs_pkcs11_module,
                 ERR_reason_error_string(error));
         }
         PKCS11_CTX_free(backend->private->ctx);

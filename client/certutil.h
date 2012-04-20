@@ -22,8 +22,8 @@
 
 */
 
-#ifndef __CERTUTIL_H__
-#define __CERTUTIL_H__
+#ifndef CERTUTIL_H
+#define CERTUTIL_H
 
 // Certificate utilities
 
@@ -39,6 +39,7 @@ X509_NAME *certutil_parse_dn(const char *s, bool fullDN);
 char *certutil_derEncode(X509 *cert);
 bool certutil_hasKeyUsage(X509 *cert, KeyUsage keyUsage);
 char *certutil_getNamePropertyByNID(X509_NAME *name, int nid);
+char *certutil_getDisplayNameFromDN(X509_NAME *xname);
 bool certutil_matchSubjectFilter(const char *subjectFilter, X509_NAME *name);
 bool certutil_compareX509Names(const X509_NAME *a, const X509_NAME *b,
                                bool orderMightDiffer);
@@ -51,6 +52,9 @@ void certutil_freeList(char ***list, size_t *count);
 PKCS7 *certutil_parseP7SignedData(const char *p7data, size_t length);
 char *certutil_makeFilename(X509_NAME *xname);
 char *certutil_getBagAttr(PKCS12_SAFEBAG *bag, ASN1_OBJECT *oid);
+void certutil_clearErrorString();
+void certutil_updateErrorString();
+char *certutil_getErrorString();
 
 #endif
 

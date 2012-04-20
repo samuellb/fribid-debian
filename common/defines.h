@@ -27,16 +27,16 @@
 
 #include "config.h"
 
-#if (!defined(CONFIGVERSION) || CONFIGVERSION < 2) && !defined(CALLED_FROM_CONFIGURE)
+#if (!defined(CONFIGVERSION) || CONFIGVERSION < 3) && !defined(CALLED_FROM_CONFIGURE)
 #error config.h is outdated or non-existent. Please run ./configure
 #endif
 
 #define PACKAGENAME         "FriBID"
-#define PACKAGEVERSION      "1.0.0"
+#define PACKAGEVERSION      "1.0.1a"
 #define PACKAGEURL          "https://www.fribid.se/"
 
 #define BINNAME             "fribid"
-#define RELEASE_TIME        1316951166
+#define RELEASE_TIME        1334937293
 #define IPCVERSION          "10"
 
 #define EMULATED_VERSION    "4.15.0.14"
@@ -44,10 +44,11 @@
 #define STATUSDOMAIN        ".status.fribid.se"
 
 #define LIB_PATH            LIBDIR "/" BINNAME
+#define LIBEXEC_PATH        LIBEXECDIR "/" BINNAME
 #define SHARE_PATH          DATADIR "/" BINNAME
 #define DOC_PATH            DATADIR "/doc/" BINNAME
 
-#define SIGNING_EXECUTABLE  LIB_PATH "/sign"
+#define SIGNING_EXECUTABLE  LIBEXEC_PATH "/sign"
 #define UI_PATH             SHARE_PATH "/ui"
 #define UI_GTK_XML          UI_PATH "/sign.xml"
 #define NPAPI_PLUGIN_LIB    LIB_PATH "/libfribidplugin.so"

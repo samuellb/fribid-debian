@@ -32,6 +32,7 @@
 #include "backend.h"
 #include "bankid.h"
 #include "platform.h"
+#include "prefs.h"
 #include "misc.h"
 #include "secmem.h"
 
@@ -331,8 +332,10 @@ void pipeData() {
 int main(int argc, char **argv) {
     bool ipc = false, error = false;
     
-    /* Check whether the current version is still valid */
     platform_seedRandom();
+    prefs_load();
+    
+    /* Check whether the current version is still valid */
     bankid_checkVersionValidity();
     
     error = secmem_init_pool();
