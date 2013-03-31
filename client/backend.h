@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2010-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2010-2011 Samuel Lidén Borell <samuel@kodafritt.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -61,6 +61,7 @@ typedef enum  {
     // File errors
     TokenError_FileNotReadable,
     TokenError_CantCreateFile,
+    TokenError_CantWriteToFile,
     TokenError_BadFile,
     TokenError_BadPassword,
     // Smart card errors

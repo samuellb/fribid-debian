@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2012 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2012 Samuel Lidén Borell <samuel@kodafritt.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,7 @@
 #include "../common/defines.h"
 #include "platform.h"
 
-#ifdef ENABLE_PKCS11
+#if ENABLE_PKCS11
 const char *prefs_pkcs11_module = DEFAULT_PKCS11_MODULE;
 #endif
 const char *prefs_bankid_emulatedversion = NULL;
@@ -38,7 +38,7 @@ void prefs_load() {
     if (cfg) {
         char *s;
         /* Which PKCS#11 module to use */
-#ifdef ENABLE_PKCS11
+#if ENABLE_PKCS11
         if (platform_getConfigString(cfg, "pkcs11", "module", &s)) {
             prefs_pkcs11_module = s;
         }

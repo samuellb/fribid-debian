@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@kodafritt.se>
   Copyright (c) 2010 Marcus Carlson <marcus@mejlamej.nu>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -473,9 +473,14 @@ static TokenError saveKeys(const CertReq *reqs, const char *hostname,
     PKCS12_set_mac(p12, (char*)password, -1, NULL, 0, MAC_ITER, NULL);
     
     // Save file
-    if (i2d_PKCS12_fp(file, p12)) {
-        error = TokenError_Success;
+    if (!i2d_PKCS12_fp(file, p12)) {
+        certutil_updateErrorString();
+        error = TokenError_CantWriteToFile;
+        goto end;
     }
+    
+    // Done!
+    error = TokenError_Success;
     
   end:
     sk_PKCS7_pop_free(authsafes, PKCS7_free);

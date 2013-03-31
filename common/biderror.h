@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@kodafritt.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ typedef enum {
     BIDERR_UserCancel =       8002,
     BIDERR_InvalidParameter = 8004,
     BIDERR_InvalidAction =    8008,
+    BIDERR_InvalidBoolean =   8012,
     BIDERR_InvalidPIN =       8013,
     BIDERR_InvalidValue =     8014,
     BIDERR_NotSSL =           8015,

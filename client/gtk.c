@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@kodafritt.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -64,6 +64,8 @@ static const char *const errorStrings[] = {
     translatable("The file could not be read"),
     // TokenError_CantCreateFile
     translatable("The file could not be saved"),
+    // TokenError_CantWriteToFile
+    translatable("The file could not be written to, even though it could be opened"),
     // TokenError_BadFile
     translatable("Invalid file format"),
     // TokenError_BadPassword,
