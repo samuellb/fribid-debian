@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@slbdata.se>
+  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@kodafritt.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,11 @@
 #endif
 
 #define PACKAGENAME         "FriBID"
-#define PACKAGEVERSION      "1.0.1a"
+#define PACKAGEVERSION      "1.0.2"
 #define PACKAGEURL          "https://www.fribid.se/"
 
 #define BINNAME             "fribid"
-#define RELEASE_TIME        1334937293
+#define RELEASE_TIME        1352912534
 #define IPCVERSION          "10"
 
 #define EMULATED_VERSION    "4.15.0.14"
