@@ -1,3 +1,10 @@
+fribid (1.0.2+git20121129-1) unstable; urgency=low
+
+  * Upstream version 1.0.2
+  * Multiarch patch from upstream GIT
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 31 Mar 2013 20:28:27 +0200
+
 fribid (1.0.1a-1) unstable; urgency=low
 
   * Upstream version 1.0.1a
