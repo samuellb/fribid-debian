@@ -24,4 +24,7 @@ Description: web browser plugin for BankID
   * To change your password/PIN you need to use other programs.
   * To be able to use card-based IDs you need to do some configuration,
     see http://wiki.fribid.se/sidor/SmartCards (in Swedish).
+ .
+ WARNING! FriBID is NOT supported by the banks. You use it entirely at
+ your own risk!
 
