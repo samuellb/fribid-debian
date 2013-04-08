@@ -1,3 +1,9 @@
+fribid (1.0.2+git20121129-2) unstable; urgency=low
+
+  * Add disclaimer to the package description
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Tue, 09 Apr 2013 00:18:31 +0200
+
 fribid (1.0.2+git20121129-1) unstable; urgency=low
 
   * Upstream version 1.0.2
