@@ -1,8 +1,15 @@
+fribid (1.0.3-2) unstable; urgency=low
+
+  * Build-depend on opensc. Thanks to Magnus Sandin for the patch
+  * Bump standards-version.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sat, 01 Feb 2014 00:58:37 +0100
+
 fribid (1.0.3-1) unstable; urgency=low
 
   * Upstream version 1.0.3
 
- -- Samuel Lidén Borell <samuel@kodafritt.se>  Fri, 31 Jan 2014 23:57:08 +0100
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Fri, 31 Jan 2014 23:57:08 +0100
 
 fribid (1.0.2+git20121129-2) unstable; urgency=low
 
