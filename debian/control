@@ -2,8 +2,8 @@ Source: fribid
 Section: web
 Priority: optional
 Maintainer: Samuel Lidén Borell <samuel@slbdata.se>
-Build-Depends: debhelper (>= 7.0.50~), pkg-config, gettext, libgtk2.0-dev (>= 2.18), libglib2.0-dev (>= 2.8), libssl-dev (>= 0.9.8), libp11-dev (>= 0.2.3), hardening-wrapper
-Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 7.0.50~), opensc, pkg-config, gettext, libgtk2.0-dev (>= 2.18), libglib2.0-dev (>= 2.8), libssl-dev (>= 0.9.8), libp11-dev (>= 0.2.3), hardening-wrapper
+Standards-Version: 3.9.5
 Homepage: https://www.fribid.se/
 Vcs-Git: git://github.com/samuellb/fribid-debian.git
 Vcs-Browser: https://github.com/samuellb/fribid-debian
