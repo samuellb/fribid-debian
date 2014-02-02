@@ -1,3 +1,11 @@
+fribid (1.0.3-3) unstable; urgency=low
+
+  * Add upstream signing key and signature URLs in debian/watch
+  * Add lintian override for the change above, since lintian is not up to
+    date and expects an old file name.
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sun, 02 Feb 2014 19:34:31 +0100
+
 fribid (1.0.3-2) unstable; urgency=low
 
   * Build-depend on opensc. Thanks to Magnus Sandin for the patch
