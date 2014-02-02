@@ -1,0 +1,2 @@
+# Lintian doesn't know about the new preferred upstream PGP key naming yet.
+fribid source: debian-watch-file-pubkey-file-is-missing

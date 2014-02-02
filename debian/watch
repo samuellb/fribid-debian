@@ -1,4 +1,4 @@
 version=3
 
-http://fribid.se/releases/source/fribid-(.*)\.tar\.bz2
+opts="pgpsigurlmangle=s/$/.asc/" http://fribid.se/releases/source/fribid-(.*)\.tar\.bz2
 
