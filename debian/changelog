@@ -1,3 +1,12 @@
+fribid (1.0.3-4) unstable; urgency=low
+
+  * Updated debian/copyright file:
+      - Moved MPL/NPL license texts into this file.
+      - Updated "Format" URL to version 1.0
+      - Updated copyright year
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Sat, 08 Feb 2014 22:36:35 +0100
+
 fribid (1.0.3-3) unstable; urgency=low
 
   * Add upstream signing key and signature URLs in debian/watch
