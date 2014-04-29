@@ -43,6 +43,7 @@ fi
 libdir=""
 libexecdir=""
 datadir=""
+docdir=""
 localedir=""
 mandir=""
 
@@ -81,6 +82,10 @@ error=""
 
 basedir=`dirname "$0"`
 
+getconfig() {
+    printf '#define CALLED_FROM_CONFIGURE\n#include "%s"\n%s\n' "$basedir/common/defines.h" "$1" | cpp - | sed 's/#.*$//g' | tr -d '\n' | sed 's/" "//g' | tr -d '\"'
+}
+
 while [ "$#" != "0" ]; do
     flag="$1"
     shift
@@ -102,6 +107,8 @@ Options:
     --libexecdir=PATH     Sets the directory for internal executables. [LIBDIR]
     --datadir=PATH        Sets the directory for architecture-independent
                           data. [PREFIX/share]
+    --docdir=PATH         Sets the directory for documentation and test
+                          scripts. [DATADIR/doc]
     --localedir=PATH      Sets the directory for translations [DATADIR/locale]
     --mandir=PATH         Sets the directory for man pages. [DATADIR/man]
     --plugin-path=PATH    Sets the NPAPI plugin path [$pluginPaths]
@@ -133,6 +140,9 @@ Options:
         ;;
     --datadir=*)
         datadir=${flag#--datadir=}
+        ;;
+    --docdir=*)
+        docdir=${flag#--docdir=}
         ;;
     --localedir=*)
         localedir=${flag#--localedir=}
@@ -188,7 +198,25 @@ Options:
     --internal--get-define=*)
         name=${flag#--internal--get-define=}
         [ ! -r "$basedir/common/config.h" ] && exit 1 # Exit if not configured yet
-        printf '#define CALLED_FROM_CONFIGURE\n#include "%s"\n%s\n' "$basedir/common/defines.h" "$name" | cpp - | sed 's/#.*$//g' | tr -d '\n' | sed 's/" "//g' | tr -d '\"'
+        getconfig "$name"
+        exit 0
+        ;;
+    --internal--get-pc-cflags|--internal--get-pc-libs)
+        [ ! -r "$basedir/common/config.h" ] && exit 1
+        gtk2libs=$([ "x`getconfig WITH_GTK2`" = "x1" ] && echo "gtk+-2.0 gdk-2.0")
+        gtk3libs=$([ "x`getconfig WITH_GTK3`" = "x1" ] && echo "gtk+-3.0")
+        pkcs11libs=$([ "x`getconfig ENABLE_PKCS11`" = "x1" ] && echo "libp11")
+        if [ "x$flag" = "x--internal--get-pc-cflags" ]; then
+            flags="--cflags"
+        else
+            flags="--libs --cflags"
+        fi
+        pkg-config $flags glib-2.0 gthread-2.0 libcrypto $gtk2libs $gtk3libs $pkcs11libs
+        exit
+        ;;
+    --internal--list-extra-objects)
+        [ ! -r "$basedir/common/config.h" ] && exit 1
+        [ "x`getconfig ENABLE_PKCS11`" = "x1" ] && echo "pkcs11.o"
         exit 0
         ;;
     --internal--remove-link)
@@ -253,6 +281,10 @@ fi
 
 if [ -z "$datadir" ]; then
     datadir="$prefixPath/share"
+fi
+
+if [ -z "$docdir" ]; then
+    docdir="$datadir/doc"
 fi
 
 if [ -z "$localedir" ]; then
@@ -416,6 +448,7 @@ cat <<EOT >"$CONFFILE"
 #define LIBDIR     "$libdir"
 #define LIBEXECDIR "$libexecdir"
 #define DATADIR    "$datadir"
+#define DOCDIR     "$docdir"
 #define LOCALEDIR  "$localedir"
 #define MANDIR     "$mandir"
 

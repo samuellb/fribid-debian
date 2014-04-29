@@ -39,8 +39,6 @@ För att kunna använda e-legitimationer på kort krävs lite konfiguration, se 
 Den officiella programvaran, BankID Säkerhetsprogram, har inte dessa begränsningar men stödjer å andra sidan inte alla plattformar och webbläsare som FriBID stödjer.
 
 .SH SKAFFA BANKID
-De flesta större banker utfärdar BankID, förutom Nordea och SEB som i skrivande stund använder andra tekniker (2011-04-20), men de planerar att gå över till BankID inom en snar framtid.
-
 Det finns två sorters e-legitimation som du kan använda från din dator: Kort och filer. Ett kort är säkrare men måste beställas via post, medan fil-legitimationer hämtas online via bankens webbsida. Båda stöds av FriBID, men för att kunna använda ett BankID på kort måste du ha en kortläsare som fungerar med OpenSC. Dessutom kan OpenSC behöva konfigureras för att fungera med din kortläsare.
 
 
@@ -68,9 +66,11 @@ module=/sökväg/till/pkcs11-modul
 version-to-emulate=4.19.0.11351
 
 .SH ATT ANVÄNDA FRIBID
-FriBID startas automatiskt när du besöker en webbsida som använder BankID för inloggning eller signering. Du kan testa ditt BankID-program \- vare sig du använder FriBID eller BankID Säkerhetsprogram \- på:
+FriBID startas automatiskt när du besöker en webbsida som använder BankID för inloggning eller signering. Du kan testa att FriBID fungerar på denna sida:
 .LP
-https://test.bankid.com/
+https://fribid.se/test/
+.LP
+Om webbsidan ovan mot förmodan inte skulle fungera (t.ex. ifall webbläsarpluginen inte fungerar), så finns det även testskript man kan köra från terminalen i /usr/share/doc/fribid/examples/, /usr/local/share/doc/fribid/examples/ eller motsvarande katalog. Om enbart skripten fungerar men inte webbsidan gör det, så är det antagligen ett problem med pluginen eller webbläsaren.
 
 .SH VIKTIGT
 FriBID är

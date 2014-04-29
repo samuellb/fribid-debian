@@ -33,11 +33,8 @@
 /* Initialization */
 void platform_init(int *argc, char ***argv);
 
-/* Random number generation */
-void platform_seedRandom();
-
 /* Pipe I/O */
-typedef void (PlatformPipeFunction) ();
+typedef void (PlatformPipeFunction) (void);
 void platform_setupPipe(PlatformPipeFunction *pipeFunction);
 
 /* File IO */
@@ -55,7 +52,7 @@ char *platform_currentPath(PlatformDirIter *iter);
 void platform_closeDir(PlatformDirIter *iter);
 
 void platform_keyDirs(char*** path, size_t* len);
-PlatformDirIter *platform_openKeysDir();
+PlatformDirIter *platform_openKeysDir(char *path);
 char *platform_filterFilename(const char *filename);
 char *platform_getFilenameForKey(const char *nameAttr);
 
@@ -78,29 +75,23 @@ void platform_setConfigInteger(PLATFORM_CFGPARAMS, long value);
 void platform_setConfigBool(PLATFORM_CFGPARAMS, bool value);
 void platform_setConfigString(PLATFORM_CFGPARAMS, const char *value);
 
-/* Asynchronous calls / threads */
-typedef void (AsyncCallFunction) (void *);
-void platform_asyncCall(AsyncCallFunction *function, void *param);
-
-/* Network */
-uint32_t platform_lookupTypeARecord(const char *hostname);
-
 /* User interface */
 
 // This value has to match the value in the window system
 // (for example, None on X11)
 #define PLATFORM_NO_WINDOW 0
 
-void platform_mainloop();
-void platform_leaveMainloop();
+void platform_mainloop(void);
+void platform_leaveMainloop(void);
 
 /* Signature dialog */
 void platform_startSign(const char *url, const char *hostname, const char *ip,
                         unsigned long parentWindowId);
-void platform_endSign();
+void platform_endSign(void);
 void platform_setNotifier(BackendNotifier *notifier);
 void platform_setMessage(const char *message);
-void platform_addKeyDirectories();
+void platform_focusPassword();
+void platform_addKeyDirectories(void);
 void platform_addToken(Token *token);
 void platform_removeToken(Token *token);
 bool platform_sign(Token **token, char *password, int password_maxlen);
@@ -108,12 +99,11 @@ bool platform_sign(Token **token, char *password, int password_maxlen);
 /* Password selection (and key generation) dialog */
 void platform_startChoosePassword(const char *name, unsigned long parentWindowId);
 void platform_setPasswordPolicy(int minLength, int minNonDigits, int minDigits);
-void platform_endChoosePassword();
+void platform_endChoosePassword(void);
 bool platform_choosePassword(char *password, long password_maxlen);
 
 /* Errors */
 void platform_showError(TokenError error);
-void platform_versionExpiredError();
 
 #endif
 

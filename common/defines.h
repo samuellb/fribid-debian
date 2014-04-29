@@ -32,16 +32,14 @@
 #endif
 
 #define PACKAGENAME         "FriBID"
-#define PACKAGEVERSION      "1.0.3"
+#define PACKAGEVERSION      "1.0.4"
 #define PACKAGEURL          "https://www.fribid.se/"
 
 #define BINNAME             "fribid"
-#define RELEASE_TIME        1391205036
+#define RELEASE_TIME        1398790773
 #define IPCVERSION          "10"
 
 #define EMULATED_VERSION    "4.15.0.14"
-#define DNSVERSION          "2"
-#define STATUSDOMAIN        ".status.fribid.se"
 
 #define LIB_PATH            LIBDIR "/" BINNAME
 #define LIBEXEC_PATH        LIBEXECDIR "/" BINNAME

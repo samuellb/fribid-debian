@@ -89,7 +89,7 @@ void platform_init(int *argc, char ***argv) {
     gtk_init(argc, argv);
 }
 
-void platform_leaveMainloop() {
+void platform_leaveMainloop(void) {
     gtk_main_quit();
 }
 
@@ -111,7 +111,7 @@ void platform_setupPipe(PlatformPipeFunction *pipeFunction) {
     g_io_channel_unref(stdinChannel);
 }
 
-void platform_mainloop() {
+void platform_mainloop(void) {
     gtk_main();
 }
 
@@ -132,7 +132,7 @@ static GtkLabel *info_label;
 
 static GtkListStore *tokens;
 static BackendNotifier *notifier;
-static bool signDialogShown;
+static bool signDialogShown, signDialogMapped;
 
 /* Password choice and key generation dialog */
 static GtkDialog *keygenDialog;
@@ -184,11 +184,11 @@ static void showMessage(GtkMessageType type, const char *text) {
     gtk_widget_destroy(dialog);
 }
 
-static void hide_message () {
+static void hide_message(void) {
     gtk_widget_hide (GTK_WIDGET (info_bar));
 }
 
-static void show_inline_message (GtkMessageType message_type, const char *message) {
+static void show_inline_message(GtkMessageType message_type, const char *message) {
     gtk_widget_show(GTK_WIDGET (info_bar));
     gtk_info_bar_set_message_type(GTK_INFO_BAR (info_bar),
                                   message_type);
@@ -261,15 +261,40 @@ static void removeTokenFile(const char *filename) {
     }
 }
 
-static void selectDefaultToken() {
+/**
+ * Selects the newest token. Since the token names usually start with
+ * a date (at least file-based tokens from Swedbank) this function
+ * simply uses strcmp().
+ */
+static void selectDefaultToken(GtkWidget *ignored1, gpointer *ignored2) {
     GtkTreeModel *model = GTK_TREE_MODEL(tokens);
     GtkTreeIter iter = { .stamp = 0 };
     
-    if (gtk_tree_model_get_iter_first(model, &iter) &&
-        !gtk_tree_model_iter_next(model, &iter)) {
-        // There's only one item, select it
-        gtk_tree_model_get_iter_first(model, &iter);
-        gtk_combo_box_set_active_iter(tokenCombo, &iter);
+    if (signDialogMapped) return;
+    signDialogMapped = true;
+    
+    if (gtk_tree_model_get_iter_first(model, &iter)) {
+        char *newest = NULL;
+        gint newest_index = -1;
+        gint current_index = 0;
+        do {
+            char *current;
+            gtk_tree_model_get(model, &iter, 0, &current, -1);
+            
+            if (!newest || strcmp(current, newest) > 0) {
+                newest = current;
+                newest_index = current_index;
+            }
+            current_index++;
+        } while (gtk_tree_model_iter_next(model, &iter));
+        
+        if (newest) {
+            gtk_tree_model_iter_nth_child(model, &iter, NULL, newest_index);
+            gtk_combo_box_set_active_iter(tokenCombo, &iter);
+            
+            // Now give the password box focus
+            gtk_widget_grab_focus(GTK_WIDGET(passwordEntry));
+        }
     }
 }
 
@@ -287,6 +312,8 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
         return;
     }
     
+    activeDialog = signDialog = GTK_DIALOG(gtk_builder_get_object(builder, "dialog_sign"));
+    
     signButton = GTK_BUTTON(gtk_builder_get_object(builder, "button_sign"));
     signButtonLabel = GTK_LABEL(gtk_builder_get_object(builder, "buttonlabel_sign"));
     
@@ -297,9 +324,11 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
     signLabel = GTK_WIDGET(gtk_builder_get_object(builder, "sign_label"));
     signScroller = GTK_WIDGET(gtk_builder_get_object(builder, "sign_scroller"));
     signText = GTK_TEXT_VIEW(gtk_builder_get_object(builder, "sign_text"));
+    platform_setMessage(NULL);
     
     // Create a GtkListStore of (displayname, token, filename) tuples
     tokens = gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_POINTER, G_TYPE_STRING);
+    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(tokens), 0, GTK_SORT_ASCENDING);
     
     tokenCombo = GTK_COMBO_BOX(gtk_builder_get_object(builder, "signature_combo"));
     gtk_combo_box_set_model(tokenCombo, GTK_TREE_MODEL(tokens));
@@ -309,10 +338,6 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
                                renderer, TRUE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(tokenCombo),
                                    renderer, "text", 0, (char *)NULL);
-    
-    // Set displayname as the sort column
-    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(tokens);
-    gtk_tree_sortable_set_sort_column_id(sortable, 0, GTK_SORT_ASCENDING);
     
     // Used to dim the "Sign" button when no signature has been selected
     g_signal_connect(G_OBJECT(tokenCombo), "changed",
@@ -329,19 +354,20 @@ void platform_startSign(const char *url, const char *hostname, const char *ip,
 
     box = GTK_BOX(gtk_builder_get_object(builder, "vbox1"));
     gtk_box_pack_end(box, GTK_WIDGET (info_bar), TRUE, FALSE, 2);
-
-    activeDialog = signDialog = GTK_DIALOG(gtk_builder_get_object(builder, "dialog_sign"));
     
     makeDialogTransient(signDialog, parentWindowId);
     
-    platform_setMessage(NULL);
     validateDialog(NULL, NULL);
+    
+    g_signal_connect(G_OBJECT(signDialog), "map-event",
+                     G_CALLBACK(selectDefaultToken), NULL);
     
     gtk_window_set_modal(GTK_WINDOW(signDialog), TRUE);
     signDialogShown = false;
+    signDialogMapped = false;
 }
 
-void platform_endSign() {
+void platform_endSign(void) {
     // Remove all manually added tokens
     GtkTreeModel *model = GTK_TREE_MODEL(tokens);
     GtkTreeIter iter = { .stamp = 0 };
@@ -397,7 +423,7 @@ void platform_setNotifier(BackendNotifier *notifierToUse) {
 /**
  * Add  from the key directories
  */
-void platform_addKeyDirectories() {
+void platform_addKeyDirectories(void) {
     char** paths;
     size_t len;
     
@@ -434,11 +460,10 @@ static gboolean addTokenFunc(gpointer ptr) {
     }
     
     // Add token
-    gtk_list_store_append(tokens, &iter);
-    gtk_list_store_set(tokens, &iter,
-                       0, token_getDisplayName(token),
-                       1, token,
-                       2, filename, -1);
+    gtk_list_store_insert_with_values(tokens, &iter, -1,
+                                      0, token_getDisplayName(token),
+                                      1, token,
+                                      2, filename, -1);
     
     if (filename) {
         // The token was manually added. Select it.
@@ -483,7 +508,7 @@ void platform_removeToken(Token *token) {
 }
 
 
-static void selectExternalFile() {
+static void selectExternalFile(void) {
     TokenError error = TokenError_Success;
     GtkFileChooser *chooser = GTK_FILE_CHOOSER(gtk_file_chooser_dialog_new(
             _("Select external identity file"), GTK_WINDOW(signDialog),
@@ -528,7 +553,6 @@ bool platform_sign(Token **token, char *password, int password_maxlen) {
     gtk_entry_set_max_length(passwordEntry, password_maxlen-1);
     
     if (!signDialogShown) {
-        selectDefaultToken();
         gtk_widget_show(GTK_WIDGET(signDialog));
         signDialogShown = true;
     }
@@ -592,7 +616,7 @@ void platform_setPasswordPolicy(int minLength, int minNonDigits, int minDigits) 
     keygenPasswordMinDigits = minDigits;
 }
 
-void platform_endChoosePassword() {
+void platform_endChoosePassword(void) {
     gtk_widget_destroy(GTK_WIDGET(keygenDialog));
     
 }
@@ -675,6 +699,9 @@ bool platform_choosePassword(char *password, long password_maxlen) {
     }
 }
 
+void platform_focusPassword() {
+    gtk_widget_grab_focus(GTK_WIDGET(passwordEntry));
+}
 
 void platform_showError(TokenError error) {
     assert(error != TokenError_Success);
@@ -700,14 +727,6 @@ void platform_showError(TokenError error) {
             }
             break;
     }
-}
-
-void platform_versionExpiredError() {
-    showMessage(GTK_MESSAGE_ERROR, _("This software version has expired, and "
-                "will probably not be accepted on all web sites.\n"
-                "\n"
-                "Please download a newer version (if available), or use "
-                "the officially supported software (Nexus Personal) instead."));
 }
 
 
