@@ -158,10 +158,6 @@ void pipeCommand(PipeCommand command, const char *url, const char *hostname,
                 platform_setMessage(decodedMessage);
                 free(decodedMessage);
             }
-            
-            if (bankid_versionHasExpired()) {
-                platform_versionExpiredError();
-            }
 
             while (platform_sign(&token, password, password_maxsize)) {
                 // Set the password (not used by all backends)
@@ -182,7 +178,12 @@ void pipeCommand(PipeCommand command, const char *url, const char *hostname,
                 
                 if (error == BIDERR_OK) break;
                 
-                platform_showError(token_getLastError(token));
+                // An error occurred
+                const TokenError tokenError = token_getLastError(token);
+                platform_showError(tokenError);
+                if (tokenError == TokenError_BadPassword || tokenError == TokenError_BadPin) {
+                    platform_focusPassword(); // also removes focus from the Sign button
+                }
                 error = BIDERR_UserCancel;
             }
 
@@ -254,10 +255,6 @@ void pipeCommand(PipeCommand command, const char *url, const char *hostname,
                                        input.minPasswordNonDigits,
                                        input.minPasswordDigits);
             
-            if (bankid_versionHasExpired()) {
-                platform_versionExpiredError();
-            }
-            
             for (;;) {
                 error = RUERR_UserCancel;
                 // Ask for a password
@@ -295,9 +292,6 @@ void pipeCommand(PipeCommand command, const char *url, const char *hostname,
             break;
         }
         case PC_StoreCertificates: {
-            // TODO maybe we should only allow the web site that called
-            //      CreateRequest to store certificates?
-            
             char *certs = pipe_readString(stdin);
             
             BankIDError error = bankid_storeCertificates(certs, hostname);
@@ -305,6 +299,11 @@ void pipeCommand(PipeCommand command, const char *url, const char *hostname,
             pipe_sendInt(stdout, error);
             pipe_flush(stdout);
             
+            platform_leaveMainloop();
+            break;
+        }
+        default: {
+            fprintf(stderr, BINNAME ": invalid command from pipe\n");
             platform_leaveMainloop();
             break;
         }
@@ -316,7 +315,7 @@ void pipeCommand(PipeCommand command, const char *url, const char *hostname,
  * This happens when one of the Javascript methods of an
  * plugin object is called.
  */
-void pipeData() {
+void pipeData(void) {
     PipeCommand command = pipe_readCommand(stdin);
     char *url = pipe_readString(stdin);
     char *hostname = pipe_readString(stdin);
@@ -332,12 +331,7 @@ void pipeData() {
 int main(int argc, char **argv) {
     bool ipc = false, error = false;
     
-    platform_seedRandom();
     prefs_load();
-    
-    /* Check whether the current version is still valid */
-    bankid_checkVersionValidity();
-    
     error = secmem_init_pool();
     if (error) {
         fprintf(stderr, BINNAME ": could not initialize secure memory");

@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2009-2011 Samuel Lidén Borell <samuel@kodafritt.se>
+  Copyright (c) 2009-2014 Samuel Lidén Borell <samuel@kodafritt.se>
  
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,9 @@
 
 #include <stdbool.h>
 
+#ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t)-1)
+#endif
 
 /**
  * Adds to a size_t and checks for integer overflow
@@ -53,6 +55,8 @@ bool is_valid_domain_name(const char *domain);
 bool is_valid_ip_address(const char *ip);
 bool is_valid_hostname(const char *hostname);
 bool is_https_url(const char *url);
+
+bool checkstrlen(const char *s, size_t maxlen);
 
 #endif
 
