@@ -1,3 +1,10 @@
+fribid (1.0.4-1) unstable; urgency=low
+
+  * Upstream version 1.0.4. Test scripts are now installed
+    under /usr/share/doc/fribid/examples/
+
+ -- Samuel Lidén Borell <samuel@slbdata.se>  Tue, 29 Apr 2014 20:36:40 +0200
+
 fribid (1.0.3-4) unstable; urgency=low
 
   * Updated debian/copyright file:
