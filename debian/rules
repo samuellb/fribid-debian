@@ -56,7 +56,7 @@ binary-arch: build install
 	dh_installdocs
 	dh_link
 	dh_strip
-	dh_compress
+	dh_compress -Xcommon.sh
 	dh_fixperms
 	dh_installdeb
 	dh_shlibdeps /usr/lib/fribid/libfribidplugin.so /usr/lib/fribid/sign
